@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+Geomag/__init__.py
+Geomag/algorithms.py
+Geomag/experiment.py
+Geomag/initiation.py
+Geomag/models.py
+geomagnetic_positioning_ddtw.egg-info/PKG-INFO
+geomagnetic_positioning_ddtw.egg-info/SOURCES.txt
+geomagnetic_positioning_ddtw.egg-info/dependency_links.txt
+geomagnetic_positioning_ddtw.egg-info/requires.txt
+geomagnetic_positioning_ddtw.egg-info/top_level.txt

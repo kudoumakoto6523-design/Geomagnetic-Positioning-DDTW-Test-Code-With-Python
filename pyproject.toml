@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geomagnetic-positioning-ddtw"
+version = "0.1.0"
+description = "Geomagnetic + IMU fusion experiments with PF/DDTW on UJIIndoorLoc-Mag."
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.24",
+  "pykrige>=1.7",
+  "matplotlib>=3.7",
+]
+
+[tool.map_builder]
+preview_resolution = 1.0
+max_kriging_points = 2500
+seed = 42
+variogram_model = "spherical"
+output_model_npz = "data/processed/uji_mag_model_kriging.npz"
+output_preview_npz = "data/processed/uji_mag_grid_preview_kriging.npz"
+output_json = "data/processed/uji_mag_grid_kriging_meta.json"
+output_png = "data/processed/uji_mag_grid_kriging.png"
+
+[tool.setuptools.packages.find]
+include = ["Geomag*"]
+exclude = ["data*", "tests*"]
