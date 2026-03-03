@@ -3,6 +3,7 @@ import math
 import re
 import tomllib
 import zipfile
+import csv
 from pathlib import Path
 from urllib.request import urlretrieve
 
@@ -10,6 +11,12 @@ import numpy as np
 
 UJI_ZIP_URL = "https://archive.ics.uci.edu/static/public/343/ujiindoorloc%2Bmag.zip"
 MARKER_RE = re.compile(r"<\d+>")
+_SENSOR_STATE = {
+    "source": None,
+    "key": None,
+    "frames": None,
+    "index": 0,
+}
 
 # ============================================================
 # Private Definitions
@@ -470,19 +477,335 @@ def get_map(
 
 
 # --- Public API placeholders used by Experiment.run() ---
+def _parse_uji_true_route_file(path):
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"UJI test file not found: {path}")
+
+    lines = [line.strip() for line in path.read_text(encoding="utf-8", errors="ignore").splitlines()]
+    lines = [line for line in lines if line]
+    marker_idx = next((i for i, line in enumerate(lines) if MARKER_RE.fullmatch(line)), None)
+    if marker_idx is None:
+        raise ValueError(f"UJI test file has no segment marker <n>: {path}")
+
+    sample_count = marker_idx
+    if sample_count <= 0:
+        raise ValueError(f"UJI test file has no sample rows before marker: {path}")
+
+    lat = np.full(sample_count, np.nan, dtype=float)
+    lon = np.full(sample_count, np.nan, dtype=float)
+
+    for line in lines[marker_idx + 1 :]:
+        parts = line.split()
+        if len(parts) != 6:
+            continue
+        try:
+            lat1, lon1, lat2, lon2 = float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3])
+            i0, i1 = int(round(float(parts[4]))), int(round(float(parts[5])))
+        except ValueError:
+            continue
+
+        if i1 < i0:
+            i0, i1 = i1, i0
+            lat1, lon1, lat2, lon2 = lat2, lon2, lat1, lon1
+        i0 = max(0, i0)
+        i1 = min(sample_count - 1, i1)
+        if i0 > i1:
+            continue
+
+        count = i1 - i0 + 1
+        lat[i0 : i1 + 1] = np.linspace(lat1, lat2, count)
+        lon[i0 : i1 + 1] = np.linspace(lon1, lon2, count)
+
+    valid = np.isfinite(lat) & np.isfinite(lon)
+    if not np.any(valid):
+        raise ValueError(f"No valid route points reconstructed from UJI file: {path}")
+
+    # Fill uncovered indices to keep route length aligned to sample count.
+    valid_idx = np.where(valid)[0]
+    missing_idx = np.where(~valid)[0]
+    if missing_idx.size > 0:
+        lat[missing_idx] = np.interp(missing_idx, valid_idx, lat[valid_idx])
+        lon[missing_idx] = np.interp(missing_idx, valid_idx, lon[valid_idx])
+
+    return [[float(a), float(b)] for a, b in zip(lat, lon)]
+
+
+def _normalize_name(name):
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def _pick_column(fieldnames, candidates):
+    norm_to_name = {_normalize_name(name): name for name in fieldnames}
+    for candidate in candidates:
+        key = _normalize_name(candidate)
+        if key in norm_to_name:
+            return norm_to_name[key]
+    return None
+
+
+def _load_uji_sensor_frames(test_path):
+    test_path = Path(test_path)
+    if not test_path.exists():
+        raise FileNotFoundError(f"UJI test file not found: {test_path}")
+
+    frames = []
+    with test_path.open("r", encoding="utf-8", errors="ignore") as handle:
+        for raw in handle:
+            line = raw.strip()
+            if not line:
+                continue
+            if MARKER_RE.search(line):
+                break
+            if not _is_sensor_row(line):
+                continue
+            parts = line.split()
+            # Format: ts, mx, my, mz, ax, ay, az, ox, oy, oz
+            mx, my, mz = float(parts[1]), float(parts[2]), float(parts[3])
+            ax, ay, az = float(parts[4]), float(parts[5]), float(parts[6])
+            gx, gy, gz = float(parts[7]), float(parts[8]), float(parts[9])
+            frames.append(
+                {
+                    "time": float(parts[0]),
+                    "mag": [mx, my, mz],
+                    "acc": [ax, ay, az],
+                    "gyro": [gx, gy, gz],
+                }
+            )
+
+    if not frames:
+        raise ValueError(f"No valid sensor rows found in UJI test file: {test_path}")
+    return frames
+
+
+def _load_csv_xyz(path, time_candidates, x_candidates, y_candidates, z_candidates):
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Sensor CSV not found: {path}")
+
+    with path.open("r", encoding="utf-8", errors="ignore", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if not reader.fieldnames:
+            raise ValueError(f"CSV has no header: {path}")
+
+        time_col = _pick_column(reader.fieldnames, time_candidates)
+        x_col = _pick_column(reader.fieldnames, x_candidates)
+        y_col = _pick_column(reader.fieldnames, y_candidates)
+        z_col = _pick_column(reader.fieldnames, z_candidates)
+        if time_col is None or x_col is None or y_col is None or z_col is None:
+            raise ValueError(
+                f"CSV {path} must contain time/x/y/z columns. Found: {reader.fieldnames}"
+            )
+
+        rows = []
+        for row in reader:
+            t_raw = str(row.get(time_col, "")).strip()
+            x_raw = str(row.get(x_col, "")).strip()
+            y_raw = str(row.get(y_col, "")).strip()
+            z_raw = str(row.get(z_col, "")).strip()
+            if not t_raw or not x_raw or not y_raw or not z_raw:
+                continue
+            if (
+                t_raw.lower() == "nan"
+                or x_raw.lower() == "nan"
+                or y_raw.lower() == "nan"
+                or z_raw.lower() == "nan"
+            ):
+                continue
+            try:
+                rows.append((float(t_raw), float(x_raw), float(y_raw), float(z_raw)))
+            except ValueError:
+                continue
+
+    if not rows:
+        raise ValueError(f"No valid numeric rows in CSV: {path}")
+
+    rows.sort(key=lambda item: item[0])
+    times = np.asarray([r[0] for r in rows], dtype=float)
+    x = np.asarray([r[1] for r in rows], dtype=float)
+    y = np.asarray([r[2] for r in rows], dtype=float)
+    z = np.asarray([r[3] for r in rows], dtype=float)
+
+    unique_times, unique_idx = np.unique(times, return_index=True)
+    return unique_times, x[unique_idx], y[unique_idx], z[unique_idx]
+
+
+def _load_own_sensor_frames(own_data_dir):
+    base = Path(own_data_dir)
+    mag_t, mag_x, mag_y, mag_z = _load_csv_xyz(
+        base / "Magnetometer.csv",
+        time_candidates=["Time (s)", "time", "timestamp"],
+        x_candidates=["X (µT)", "X", "mx"],
+        y_candidates=["Y (µT)", "Y", "my"],
+        z_candidates=["Z (µT)", "Z", "mz"],
+    )
+    acc_t, acc_x, acc_y, acc_z = _load_csv_xyz(
+        base / "Accelerometer.csv",
+        time_candidates=["Time (s)", "time", "timestamp"],
+        x_candidates=["X (m/s^2)", "X", "ax"],
+        y_candidates=["Y (m/s^2)", "Y", "ay"],
+        z_candidates=["Z (m/s^2)", "Z", "az"],
+    )
+    gyr_t, gyr_x, gyr_y, gyr_z = _load_csv_xyz(
+        base / "Gyroscope.csv",
+        time_candidates=["Time (s)", "time", "timestamp"],
+        x_candidates=["X (rad/s)", "X", "gx"],
+        y_candidates=["Y (rad/s)", "Y", "gy"],
+        z_candidates=["Z (rad/s)", "Z", "gz"],
+    )
+
+    acc_x_i = np.interp(mag_t, acc_t, acc_x)
+    acc_y_i = np.interp(mag_t, acc_t, acc_y)
+    acc_z_i = np.interp(mag_t, acc_t, acc_z)
+    gyr_x_i = np.interp(mag_t, gyr_t, gyr_x)
+    gyr_y_i = np.interp(mag_t, gyr_t, gyr_y)
+    gyr_z_i = np.interp(mag_t, gyr_t, gyr_z)
+
+    frames = []
+    for i in range(mag_t.size):
+        frames.append(
+            {
+                "time": float(mag_t[i]),
+                "mag": [float(mag_x[i]), float(mag_y[i]), float(mag_z[i])],
+                "acc": [float(acc_x_i[i]), float(acc_y_i[i]), float(acc_z_i[i])],
+                "gyro": [float(gyr_x_i[i]), float(gyr_y_i[i]), float(gyr_z_i[i])],
+            }
+        )
+    if not frames:
+        raise ValueError(f"No sensor frames built from own dataset: {own_data_dir}")
+    return frames
+
+
+def _sensor_stream_key(source, data_root, uji_test_file, own_data_dir):
+    return (source, str(Path(data_root)), str(uji_test_file), str(Path(own_data_dir)))
+
+
+def _ensure_sensor_stream(source, data_root, uji_test_file, own_data_dir, reset=False):
+    key = _sensor_stream_key(source, data_root, uji_test_file, own_data_dir)
+    if reset or _SENSOR_STATE["frames"] is None or _SENSOR_STATE["key"] != key:
+        if source == "uji":
+            base = (
+                Path(data_root)
+                / "uji_indoorloc_mag"
+                / "extracted"
+                / "UJIIndoorLoc-Mag"
+                / "UJIIndoorLoc-Mag"
+                / "tests"
+            )
+            test_path = Path(uji_test_file)
+            if not test_path.is_absolute():
+                test_path = base / uji_test_file
+            frames = _load_uji_sensor_frames(test_path)
+        elif source == "own":
+            frames = _load_own_sensor_frames(own_data_dir)
+        else:
+            raise ValueError(f"Unsupported sensor source: {source}")
+
+        _SENSOR_STATE["source"] = source
+        _SENSOR_STATE["key"] = key
+        _SENSOR_STATE["frames"] = frames
+        _SENSOR_STATE["index"] = 0
+    return _SENSOR_STATE["frames"]
+
+
 # TODO: Provide the ground-truth route for a test run.
-def get_true_route():
-    pass
+def get_true_route(
+    source="uji",
+    data_root="data/raw",
+    uji_test_file="tt01.txt",
+    own_location_csv=None,
+    own_data_dir="data/Geomagnetic Navigation 2026-03-03 15-28-45",
+):
+    source = source.lower()
+
+    if source == "uji":
+        base = Path(data_root) / "uji_indoorloc_mag" / "extracted" / "UJIIndoorLoc-Mag" / "UJIIndoorLoc-Mag" / "tests"
+        test_path = Path(uji_test_file)
+        if not test_path.is_absolute():
+            test_path = base / uji_test_file
+        return _parse_uji_true_route_file(test_path)
+
+    if source == "own":
+        if own_location_csv is None:
+            csv_path = Path(own_data_dir) / "Location.csv"
+        else:
+            csv_path = Path(own_location_csv)
+        if not csv_path.exists():
+            raise FileNotFoundError(f"Own route CSV not found: {csv_path}")
+
+        with csv_path.open("r", encoding="utf-8", errors="ignore", newline="") as handle:
+            reader = csv.DictReader(handle)
+            if not reader.fieldnames:
+                raise ValueError(f"Own route CSV has no header: {csv_path}")
+
+            lat_col = _pick_column(reader.fieldnames, ["Latitude (°)", "Latitude", "lat", "latitude"])
+            lon_col = _pick_column(reader.fieldnames, ["Longitude (°)", "Longitude", "lon", "longitude"])
+            if lat_col is None or lon_col is None:
+                raise ValueError(
+                    f"Own route CSV must contain latitude/longitude columns. Found: {reader.fieldnames}"
+                )
+
+            route = []
+            for row in reader:
+                lat_raw = str(row.get(lat_col, "")).strip()
+                lon_raw = str(row.get(lon_col, "")).strip()
+                if not lat_raw or not lon_raw:
+                    continue
+                if lat_raw.lower() == "nan" or lon_raw.lower() == "nan":
+                    continue
+                try:
+                    lat = float(lat_raw)
+                    lon = float(lon_raw)
+                except ValueError:
+                    continue
+                route.append([lat, lon])
+
+        if not route:
+            raise ValueError(f"No valid latitude/longitude rows found in: {csv_path}")
+        return route
+
+    raise ValueError(f"Unsupported true-route source: {source}")
 
 
 # TODO: Return test length (number of sensor frames to consume).
-def get_test_len():
-    pass
+def get_test_len(
+    source="uji",
+    data_root="data/raw",
+    uji_test_file="tt01.txt",
+    own_data_dir="data/Geomagnetic Navigation 2026-03-03 15-28-45",
+):
+    source = source.lower()
+    frames = _ensure_sensor_stream(
+        source=source,
+        data_root=data_root,
+        uji_test_file=uji_test_file,
+        own_data_dir=own_data_dir,
+        reset=True,
+    )
+    return len(frames)
 
 
 # TODO: Fetch one frame of sensor data: magnetometer, accelerometer, gyroscope.
-def get_sensor():
-    pass
+def get_sensor(
+    source="uji",
+    data_root="data/raw",
+    uji_test_file="tt01.txt",
+    own_data_dir="data/Geomagnetic Navigation 2026-03-03 15-28-45",
+):
+    source = source.lower()
+    frames = _ensure_sensor_stream(
+        source=source,
+        data_root=data_root,
+        uji_test_file=uji_test_file,
+        own_data_dir=own_data_dir,
+        reset=False,
+    )
+    idx = _SENSOR_STATE["index"]
+    if idx >= len(frames):
+        raise StopIteration("Sensor stream exhausted. Call get_test_len(...) to reset stream.")
+    frame = frames[idx]
+    _SENSOR_STATE["index"] = idx + 1
+    return frame["mag"], frame["acc"], frame["gyro"]
 
 
 # TODO: Determine whether buffered sensor samples contain a completed step.
@@ -510,54 +833,311 @@ def PF(step_len, heading_angle, geomag_list, pf_state):
     pass
 
 
+def _parse_meta_groups(meta, defaults):
+    if meta is None:
+        raw_items = list(defaults)
+    else:
+        raw_items = [str(x).strip().lower() for x in meta if str(x).strip()]
+
+    main_group = []
+    separate_groups = []
+    for token in raw_items:
+        if token.endswith("_"):
+            base = token[:-1]
+            if base:
+                separate_groups.append([base])
+        else:
+            main_group.append(token)
+
+    groups = []
+    if main_group:
+        groups.append(main_group)
+    groups.extend(separate_groups)
+    if not groups:
+        groups = [list(defaults)]
+    return groups
+
+
+def _to_xy_route(route, origin_lat=None, origin_lon=None):
+    arr = np.asarray(route, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] < 2:
+        raise ValueError("`route` must be a 2D sequence with at least 2 columns.")
+    a = arr[:, 0]
+    b = arr[:, 1]
+    if origin_lat is not None and origin_lon is not None:
+        x, y = _latlon_to_xy(a, b, float(origin_lat), float(origin_lon))
+        return np.asarray(x, dtype=float), np.asarray(y, dtype=float), "xy"
+    # Fallback: assume [lat, lon] and render in geographic axes.
+    return np.asarray(b, dtype=float), np.asarray(a, dtype=float), "latlon"
+
+
+def _sensor_selector_set(group_tokens):
+    valid = {
+        "sensor",
+        "acc",
+        "gyro",
+        "mag",
+        "acc_x",
+        "acc_y",
+        "acc_z",
+        "gyro_x",
+        "gyro_y",
+        "gyro_z",
+        "mag_x",
+        "mag_y",
+        "mag_z",
+    }
+    return [token for token in group_tokens if token in valid]
+
+
+def _expand_sensor_selectors(selectors):
+    expanded = set()
+    if "sensor" in selectors:
+        expanded.update(
+            [
+                "acc_x",
+                "acc_y",
+                "acc_z",
+                "gyro_x",
+                "gyro_y",
+                "gyro_z",
+                "mag_x",
+                "mag_y",
+                "mag_z",
+            ]
+        )
+    if "acc" in selectors:
+        expanded.update(["acc_x", "acc_y", "acc_z"])
+    if "gyro" in selectors:
+        expanded.update(["gyro_x", "gyro_y", "gyro_z"])
+    if "mag" in selectors:
+        expanded.update(["mag_x", "mag_y", "mag_z"])
+    for selector in selectors:
+        if selector in {
+            "acc_x",
+            "acc_y",
+            "acc_z",
+            "gyro_x",
+            "gyro_y",
+            "gyro_z",
+            "mag_x",
+            "mag_y",
+            "mag_z",
+        }:
+            expanded.add(selector)
+    return sorted(expanded)
+
+
+def _coerce_sensor_data(sensor_data):
+    if sensor_data is None:
+        raise ValueError("`sensor_data` is required when meta includes sensor-related options.")
+    if isinstance(sensor_data, dict):
+        t = np.asarray(sensor_data.get("t", []), dtype=float)
+        acc = np.asarray(sensor_data.get("acc", []), dtype=float)
+        gyro = np.asarray(sensor_data.get("gyro", []), dtype=float)
+        mag = np.asarray(sensor_data.get("mag", []), dtype=float)
+    else:
+        raise ValueError("`sensor_data` must be a dict with keys: t, acc, gyro, mag.")
+
+    if t.ndim != 1 or t.size == 0:
+        raise ValueError("`sensor_data['t']` must be a non-empty 1D sequence.")
+    for name, arr in [("acc", acc), ("gyro", gyro), ("mag", mag)]:
+        if arr.ndim != 2 or arr.shape[0] != t.size or arr.shape[1] != 3:
+            raise ValueError(
+                f"`sensor_data['{name}']` must be shape (N, 3), same N as `t`."
+            )
+    return t, acc, gyro, mag
+
+
+def _load_uji_grid_for_plot(geomag_map, vis_resolution):
+    model = None
+    grid = None
+    if isinstance(geomag_map, dict) and "output_model_npz" in geomag_map:
+        model_path = Path(geomag_map["output_model_npz"])
+        if model_path.exists():
+            model = np.load(model_path)
+            try:
+                x_train = np.asarray(model["x_train"], dtype=float)
+                y_train = np.asarray(model["y_train"], dtype=float)
+                z_train = np.asarray(model["z_train"], dtype=float)
+                variogram_model = str(model["variogram_model"][0])
+                min_x = float(model["min_x"][0])
+                max_x = float(model["max_x"][0])
+                min_y = float(model["min_y"][0])
+                max_y = float(model["max_y"][0])
+                grid_x = np.arange(min_x, max_x + vis_resolution, vis_resolution, dtype=float)
+                grid_y = np.arange(min_y, max_y + vis_resolution, vis_resolution, dtype=float)
+                ok = _fit_ordinary_kriging(
+                    x=x_train,
+                    y=y_train,
+                    z=z_train,
+                    variogram_model=variogram_model,
+                )
+                grid_z, _ = ok.execute("grid", grid_x, grid_y)
+                grid = (
+                    np.asarray(grid_x, dtype=float),
+                    np.asarray(grid_y, dtype=float),
+                    np.asarray(grid_z, dtype=float),
+                )
+                return model, grid
+            except Exception:
+                # Fallback to preview grid when kriging runtime dependencies are unavailable.
+                pass
+
+    preview_paths = []
+    if isinstance(geomag_map, dict) and "output_preview_npz" in geomag_map:
+        preview_paths.append(Path(geomag_map["output_preview_npz"]))
+    preview_paths.append(Path("data/processed/uji_mag_grid_preview_kriging.npz"))
+
+    for p in preview_paths:
+        if p.exists():
+            data = np.load(p)
+            grid_x = np.asarray(data["grid_x"], dtype=float)
+            grid_y = np.asarray(data["grid_y"], dtype=float)
+            grid_z = np.asarray(data["grid_magnitude"], dtype=float)
+            return model, (grid_x, grid_y, grid_z)
+
+    raise ValueError("Unable to load UJI map grid (missing model/preview artifacts).")
+
+
+def _save_figure(fig, output_png, fig_idx, multi):
+    if not output_png:
+        return None
+    target = Path(output_png)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if multi:
+        stem = target.stem
+        suffix = target.suffix or ".png"
+        out = target.with_name(f"{stem}_{fig_idx + 1}{suffix}")
+    else:
+        out = target
+    fig.savefig(out, bbox_inches="tight")
+    return str(out)
+
+
+def _default_visualize_output_png(mode, meta):
+    out_dir = Path("pictures generated")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    items = [str(x).strip().lower().rstrip("_") for x in (meta or []) if str(x).strip()]
+    safe_items = [re.sub(r"[^a-z0-9]+", "-", token).strip("-") for token in items]
+    safe_items = [token for token in safe_items if token]
+    stem = f"{mode}-{'-'.join(safe_items)}" if safe_items else str(mode)
+    candidate = out_dir / f"{stem}.png"
+    index = 1
+    while candidate.exists():
+        index += 1
+        candidate = out_dir / f"{stem}-{index}.png"
+    return str(candidate)
+
+
 # --- Public API: visualization router (called by Experiment.run / temp scripts) ---
 # TODO: Visualize estimated track vs. route on the map.
-def visualize(pos_list=None, route=None, geomag_map=None, mode="track", vis_resolution=0.2):
+def visualize(
+    pos_list=None,
+    route=None,
+    geomag_map=None,
+    mode="track",
+    vis_resolution=0.2,
+    meta=None,
+    sensor_data=None,
+    show=True,
+    output_png=None,
+):
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        raise ImportError(
+            "matplotlib is required for visualization. Install it with: pip install matplotlib"
+        ) from exc
+
+    mode = str(mode).lower()
+    if output_png is None:
+        output_png = _default_visualize_output_png(mode=mode, meta=meta)
+
     if mode == "ujimap":
-        if not isinstance(geomag_map, dict) or "output_model_npz" not in geomag_map:
-            raise ValueError("`geomag_map` must contain `output_model_npz` for mode='ujimap'.")
+        items = [str(x).strip().lower().rstrip("_") for x in (meta or ["map"]) if str(x).strip()]
+        group_set = set(items)
+        has_map = "map" in group_set
+        has_true_route = "true_route" in group_set
+        sensor_selectors = _sensor_selector_set(items)
+        has_sensor_plot = len(sensor_selectors) > 0
 
-        model = np.load(Path(geomag_map["output_model_npz"]))
-        x_train = np.asarray(model["x_train"], dtype=float)
-        y_train = np.asarray(model["y_train"], dtype=float)
-        z_train = np.asarray(model["z_train"], dtype=float)
-        variogram_model = str(model["variogram_model"][0])
-        min_x = float(model["min_x"][0])
-        max_x = float(model["max_x"][0])
-        min_y = float(model["min_y"][0])
-        max_y = float(model["max_y"][0])
+        if not (has_map or has_true_route or has_sensor_plot):
+            raise ValueError(f"Unsupported ujimap meta options: {items}")
 
-        grid_x = np.arange(min_x, max_x + vis_resolution, vis_resolution, dtype=float)
-        grid_y = np.arange(min_y, max_y + vis_resolution, vis_resolution, dtype=float)
-        ok = _fit_ordinary_kriging(
-            x=x_train,
-            y=y_train,
-            z=z_train,
-            variogram_model=variogram_model,
-        )
-        grid_z, _ = ok.execute("grid", grid_x, grid_y)
-        grid_z = np.asarray(grid_z, dtype=float)
+        if has_map and has_sensor_plot:
+            fig, axes = plt.subplots(1, 2, figsize=(16, 6), dpi=120)
+            ax_map, ax_sensor = axes[0], axes[1]
+        elif has_map or has_true_route:
+            fig, ax_map = plt.subplots(1, 1, figsize=(10, 7), dpi=120)
+            ax_sensor = None
+        else:
+            fig, ax_sensor = plt.subplots(1, 1, figsize=(12, 5), dpi=120)
+            ax_map = None
 
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError as exc:
-            raise ImportError(
-                "matplotlib is required for visualization. Install it with: pip install matplotlib"
-            ) from exc
+        model = None
+        if has_map and ax_map is not None:
+            model, (grid_x, grid_y, grid_z) = _load_uji_grid_for_plot(geomag_map, vis_resolution)
+            xx, yy = np.meshgrid(grid_x, grid_y)
+            contour = ax_map.contourf(xx, yy, grid_z, levels=80, cmap="viridis")
+            cbar = fig.colorbar(contour, ax=ax_map)
+            cbar.set_label("Magnetic Magnitude")
+            ax_map.set_xlabel("X (m)")
+            ax_map.set_ylabel("Y (m)")
+            ax_map.set_title("UJI Map")
 
-        xx, yy = np.meshgrid(grid_x, grid_y)
-        fig, ax = plt.subplots(figsize=(10, 7), dpi=120)
-        contour = ax.contourf(xx, yy, grid_z, levels=80, cmap="viridis")
-        ax.set_title("UJI Continuous Magnetic Map (Kriging)")
-        ax.set_xlabel("X (m)")
-        ax.set_ylabel("Y (m)")
-        cbar = fig.colorbar(contour, ax=ax)
-        cbar.set_label("Magnetic Magnitude")
+        if has_true_route and ax_map is not None:
+            if route is None:
+                raise ValueError("`route` is required when meta includes 'true_route'.")
+            if model is not None and "origin_lat" in model and "origin_lon" in model:
+                origin_lat = float(model["origin_lat"][0])
+                origin_lon = float(model["origin_lon"][0])
+                rx, ry, _ = _to_xy_route(route, origin_lat=origin_lat, origin_lon=origin_lon)
+                ax_map.plot(rx, ry, color="red", linewidth=2.0, label="True Route")
+            else:
+                rx, ry, _ = _to_xy_route(route, origin_lat=None, origin_lon=None)
+                ax_map.set_xlabel("Longitude (deg)")
+                ax_map.set_ylabel("Latitude (deg)")
+                ax_map.plot(rx, ry, color="red", linewidth=2.0, label="True Route")
+
+            if len(route) > 0:
+                ax_map.scatter([rx[0]], [ry[0]], color="lime", s=30, label="Start", zorder=3)
+                ax_map.scatter([rx[-1]], [ry[-1]], color="black", s=30, label="End", zorder=3)
+            title = "True Route" if not has_map else "UJI Map + True Route"
+            ax_map.set_title(title)
+            ax_map.legend(loc="best")
+
+        if has_sensor_plot and ax_sensor is not None:
+            t, acc, gyro, mag = _coerce_sensor_data(sensor_data)
+            channels = _expand_sensor_selectors(sensor_selectors)
+            for channel in channels:
+                sensor_name, axis_name = channel.split("_")
+                axis_idx = {"x": 0, "y": 1, "z": 2}[axis_name]
+                if sensor_name == "acc":
+                    values = acc[:, axis_idx]
+                elif sensor_name == "gyro":
+                    values = gyro[:, axis_idx]
+                else:
+                    values = mag[:, axis_idx]
+                ax_sensor.plot(t, values, linewidth=1.0, label=channel)
+
+            ax_sensor.set_title("Sensor Data")
+            ax_sensor.set_xlabel("Sample / Time Axis")
+            ax_sensor.set_ylabel("Value")
+            ax_sensor.grid(True, alpha=0.25)
+            ax_sensor.legend(loc="best", ncol=2, fontsize=8)
+
         fig.tight_layout()
-        plt.show()
-        return
+        saved_path = _save_figure(fig, output_png, 0, False)
+        if show:
+            plt.show()
+        plt.close(fig)
+        return saved_path
 
     if mode == "usermap":
+        items = [str(x).strip().lower().rstrip("_") for x in (meta or ["map"]) if str(x).strip()]
+        if "map" not in items:
+            raise ValueError("mode='usermap' currently supports map rendering only; include 'map' in meta.")
         if not isinstance(geomag_map, dict):
             raise ValueError("`geomag_map` must be a dict for mode='usermap'.")
         if geomag_map.get("source") != "own":
@@ -570,12 +1150,12 @@ def visualize(pos_list=None, route=None, geomag_map=None, mode="track", vis_reso
         if z.ndim != 2 or z.size == 0:
             raise ValueError("`grid_array` must be a non-empty 2D matrix.")
 
-        meta = geomag_map.get("grid_map_contract", {}).get("meta", {})
-        cell_size = float(meta.get("cell_size_m", 1.0) or 1.0)
-        origin = meta.get("origin_xy_m", [0.0, 0.0])
+        meta_map = geomag_map.get("grid_map_contract", {}).get("meta", {})
+        cell_size = float(meta_map.get("cell_size_m", 1.0) or 1.0)
+        origin = meta_map.get("origin_xy_m", [0.0, 0.0])
         origin_x = float(origin[0]) if len(origin) > 0 else 0.0
         origin_y = float(origin[1]) if len(origin) > 1 else 0.0
-        variogram_model = str(meta.get("variogram_model", "spherical"))
+        variogram_model = str(meta_map.get("variogram_model", "spherical"))
 
         rows, cols = z.shape
         col_coords = origin_x + np.arange(cols, dtype=float) * cell_size
@@ -603,13 +1183,6 @@ def visualize(pos_list=None, route=None, geomag_map=None, mode="track", vis_reso
         grid_z, _ = ok.execute("grid", grid_x, grid_y)
         grid_z = np.asarray(grid_z, dtype=float)
 
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError as exc:
-            raise ImportError(
-                "matplotlib is required for visualization. Install it with: pip install matplotlib"
-            ) from exc
-
         xx, yy = np.meshgrid(grid_x, grid_y)
         fig, ax = plt.subplots(figsize=(8, 6), dpi=120)
         contour = ax.contourf(xx, yy, grid_z, levels=80, cmap="viridis")
@@ -619,7 +1192,13 @@ def visualize(pos_list=None, route=None, geomag_map=None, mode="track", vis_reso
         cbar = fig.colorbar(contour, ax=ax)
         cbar.set_label("Magnetic Magnitude")
         fig.tight_layout()
-        plt.show()
+        if output_png:
+            out = Path(output_png)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(out, bbox_inches="tight")
+        if show:
+            plt.show()
+        plt.close(fig)
         return
 
     # TODO: Add track/route visualization for localization results.
