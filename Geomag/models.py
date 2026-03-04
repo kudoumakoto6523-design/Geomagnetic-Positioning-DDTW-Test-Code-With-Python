@@ -1,5 +1,9 @@
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 
 @dataclass
@@ -7,6 +11,11 @@ class RunContext:
     num_runs: int
     window_size: int
     geomag_map: Any
+    route_source: str = "uji"
+    sensor_source: str = "uji"
+    data_root: str = "data/raw"
+    uji_test_file: str = "tt01.txt"
+    own_data_dir: str = "data/Geomagnetic Navigation 2026-03-03 15-28-45"
 
 
 @dataclass
@@ -15,16 +24,253 @@ class Particle:
     y: float = 0.0
     theta: float = 0.0
     weight: float = 1.0
+    mag_hist: list[float] = field(default_factory=list)
 
 
 class PFState:
-    # TODO: Implement PF state container and particle management logic.
-    def __init__(self, init_pos, mag_map):
-        pass
+    def __init__(
+        self,
+        init_pos,
+        mag_map,
+        num_particles=500,
+        seed=42,
+        weight_sigma=8.0,
+        min_particles=1000,
+        max_particles=100000000,
+    ):
+        self.mag_map = mag_map
+        self.rng = np.random.default_rng(seed)
+        self.weight_sigma = float(weight_sigma)
+        self.min_particles = int(min_particles)
+        self.max_particles = int(max_particles)
+        self.n_particles = int(np.clip(num_particles, self.min_particles, self.max_particles))
+        self.map_points = self._load_map_points(mag_map)
+        self.map_bounds = self._infer_map_bounds(self.map_points)
+        self.x0, self.y0 = self._normalize_init_pos(init_pos, mag_map)
+        self.particles = self._spawn_particles(self.n_particles)
+        self._normalize_weights()
+        self.estimate = self._estimate_xy()
 
-    # TODO: Return current estimated position.
+    def _normalize_init_pos(self, init_pos, mag_map):
+        arr = np.asarray(init_pos, dtype=float).reshape(-1)
+        if arr.size < 2:
+            return 0.0, 0.0
+        a, b = float(arr[0]), float(arr[1])
+
+        # If map provides geo origin and pos looks like lat/lon, convert to local xy.
+        try:
+            if isinstance(mag_map, dict) and "output_model_npz" in mag_map:
+                p = Path(mag_map["output_model_npz"])
+                if p.exists():
+                    model = np.load(p)
+                    if "origin_lat" in model and "origin_lon" in model and abs(a) <= 90 and abs(b) <= 180:
+                        lat0 = float(model["origin_lat"][0])
+                        lon0 = float(model["origin_lon"][0])
+                        return self._latlon_to_xy(a, b, lat0, lon0)
+        except Exception:
+            pass
+
+        return a, b
+
+    @staticmethod
+    def _latlon_to_xy(lat, lon, lat0, lon0):
+        radius = 6378137.0
+        dlat = math.radians(lat - lat0)
+        dlon = math.radians(lon - lon0)
+        x = radius * dlon * math.cos(math.radians((lat + lat0) * 0.5))
+        y = radius * dlat
+        return float(x), float(y)
+
+    def _load_map_points(self, mag_map):
+        if not isinstance(mag_map, dict):
+            return None
+
+        # UJI continuous model points
+        if "output_model_npz" in mag_map:
+            path = Path(mag_map["output_model_npz"])
+            if path.exists():
+                model = np.load(path)
+                x = np.asarray(model.get("x_train", []), dtype=float)
+                y = np.asarray(model.get("y_train", []), dtype=float)
+                z = np.asarray(model.get("z_train", []), dtype=float)
+                if x.size and y.size and z.size and x.size == y.size == z.size:
+                    return {"x": x, "y": y, "z": z}
+
+        # Own grid points
+        if mag_map.get("source") == "own" and mag_map.get("grid_array") is not None:
+            grid = np.asarray(mag_map["grid_array"], dtype=float)
+            if grid.ndim == 2 and grid.size > 0:
+                meta = mag_map.get("grid_map_contract", {}).get("meta", {})
+                cell = float(meta.get("cell_size_m", 1.0) or 1.0)
+                origin = meta.get("origin_xy_m", [0.0, 0.0])
+                ox = float(origin[0]) if len(origin) > 0 else 0.0
+                oy = float(origin[1]) if len(origin) > 1 else 0.0
+                rows, cols = grid.shape
+                xs = ox + np.arange(cols, dtype=float) * cell
+                ys = oy + np.arange(rows, dtype=float) * cell
+                xx, yy = np.meshgrid(xs, ys)
+                mask = np.isfinite(grid)
+                return {"x": xx[mask], "y": yy[mask], "z": grid[mask]}
+
+        return None
+
+    def _spawn_particles(self, n):
+        particles = []
+        for _ in range(n):
+            px = float(self.x0 + self.rng.normal(0.0, 0.8))
+            py = float(self.y0 + self.rng.normal(0.0, 0.8))
+            px, py = self.clamp_to_map(px, py)
+            particles.append(
+                Particle(
+                    x=px,
+                    y=py,
+                    theta=float(self.rng.uniform(-math.pi, math.pi)),
+                    weight=1.0 / max(n, 1),
+                )
+            )
+        return particles
+
+    @staticmethod
+    def _infer_map_bounds(map_points, pad=0.4):
+        if map_points is None:
+            return None
+        x = np.asarray(map_points.get("x", []), dtype=float)
+        y = np.asarray(map_points.get("y", []), dtype=float)
+        if x.size == 0 or y.size == 0:
+            return None
+        return (
+            float(np.min(x) - pad),
+            float(np.max(x) + pad),
+            float(np.min(y) - pad),
+            float(np.max(y) + pad),
+        )
+
+    def clamp_to_map(self, x, y):
+        if self.map_bounds is None:
+            return float(x), float(y)
+        min_x, max_x, min_y, max_y = self.map_bounds
+        return float(np.clip(x, min_x, max_x)), float(np.clip(y, min_y, max_y))
+
+    def _normalize_weights(self):
+        total = float(sum(max(p.weight, 0.0) for p in self.particles))
+        if total <= 1e-12:
+            w = 1.0 / max(len(self.particles), 1)
+            for p in self.particles:
+                p.weight = w
+            return
+        for p in self.particles:
+            p.weight = max(p.weight, 0.0) / total
+
+    def _estimate_xy(self):
+        if not self.particles:
+            return (0.0, 0.0)
+        self._normalize_weights()
+        xs = np.asarray([p.x for p in self.particles], dtype=float)
+        ys = np.asarray([p.y for p in self.particles], dtype=float)
+        ws = np.asarray([p.weight for p in self.particles], dtype=float)
+        return float(np.sum(xs * ws)), float(np.sum(ys * ws))
+
     def get_pos(self):
-        pass
+        self.estimate = self._estimate_xy()
+        return self.estimate
+
+    def effective_sample_size(self):
+        if not self.particles:
+            return 0.0
+        ws = np.asarray([p.weight for p in self.particles], dtype=float)
+        denom = float(np.sum(ws * ws))
+        if denom <= 1e-12:
+            return 0.0
+        return float(1.0 / denom)
+
+    def map_magnitude(self, x, y, k=10):
+        if self.map_points is None:
+            return 0.0
+        px = self.map_points["x"]
+        py = self.map_points["y"]
+        pz = self.map_points["z"]
+        if px.size == 0:
+            return 0.0
+        dx = px - float(x)
+        dy = py - float(y)
+        dist2 = dx * dx + dy * dy
+        kk = max(1, min(int(k), dist2.size))
+        idx = np.argpartition(dist2, kk - 1)[:kk]
+        d = np.sqrt(dist2[idx]) + 1e-6
+        w = 1.0 / d
+        return float(np.sum(w * pz[idx]) / np.sum(w))
+
+    def adapt_particle_count_kld(self, epsilon=0.12, z=1.96, bin_size_xy=0.8, bin_size_theta=0.35):
+        if not self.particles:
+            return self.min_particles
+        bins = set()
+        for p in self.particles:
+            bx = int(math.floor(p.x / float(bin_size_xy)))
+            by = int(math.floor(p.y / float(bin_size_xy)))
+            bt = int(math.floor((p.theta + math.pi) / float(bin_size_theta)))
+            bins.add((bx, by, bt))
+        k = len(bins)
+        if k <= 1:
+            return self.min_particles
+        n = (k - 1) / (2.0 * float(epsilon))
+        t = 1.0 - 2.0 / (9.0 * (k - 1)) + float(z) * math.sqrt(2.0 / (9.0 * (k - 1)))
+        n = int(math.ceil(n * (t ** 3)))
+        return int(np.clip(n, self.min_particles, self.max_particles))
+
+    def cso_resample(self, target_count=None):
+        if not self.particles:
+            self.particles = self._spawn_particles(self.min_particles)
+            return
+        self._normalize_weights()
+        particles = sorted(self.particles, key=lambda p: p.weight, reverse=True)
+        n = len(particles)
+        if target_count is None:
+            target_count = n
+        target_count = int(np.clip(target_count, self.min_particles, self.max_particles))
+
+        n_rooster = max(1, int(0.2 * n))
+        n_hen = max(1, int(0.5 * n))
+        roosters = particles[:n_rooster]
+        hens = particles[n_rooster : n_rooster + n_hen]
+        chicks = particles[n_rooster + n_hen :]
+
+        gbest = roosters[0]
+        new_particles = []
+        for _ in range(target_count):
+            role_r = float(self.rng.random())
+            if role_r < 0.25 and roosters:
+                base = roosters[int(self.rng.integers(0, len(roosters)))]
+                history_seed = list(base.mag_hist)
+                nx = base.x + float(self.rng.normal(0.0, 0.35))
+                ny = base.y + float(self.rng.normal(0.0, 0.35))
+                nt = base.theta + float(self.rng.normal(0.0, 0.08))
+            elif role_r < 0.75 and hens and roosters:
+                h = hens[int(self.rng.integers(0, len(hens)))]
+                r = roosters[int(self.rng.integers(0, len(roosters)))]
+                history_seed = list(h.mag_hist)
+                nx = h.x + 0.6 * (r.x - h.x) + 0.2 * (gbest.x - h.x) + float(self.rng.normal(0.0, 0.25))
+                ny = h.y + 0.6 * (r.y - h.y) + 0.2 * (gbest.y - h.y) + float(self.rng.normal(0.0, 0.25))
+                nt = h.theta + 0.3 * (r.theta - h.theta) + float(self.rng.normal(0.0, 0.06))
+            else:
+                leader = hens[int(self.rng.integers(0, len(hens)))] if hens else gbest
+                c = chicks[int(self.rng.integers(0, len(chicks)))] if chicks else leader
+                history_seed = list(c.mag_hist)
+                nx = c.x + 0.8 * (leader.x - c.x) + float(self.rng.normal(0.0, 0.3))
+                ny = c.y + 0.8 * (leader.y - c.y) + float(self.rng.normal(0.0, 0.3))
+                nt = c.theta + 0.6 * (leader.theta - c.theta) + float(self.rng.normal(0.0, 0.08))
+
+            new_particles.append(
+                Particle(
+                    x=float(nx),
+                    y=float(ny),
+                    theta=float(((nt + math.pi) % (2.0 * math.pi)) - math.pi),
+                    weight=1.0 / target_count,
+                    mag_hist=history_seed[-64:],
+                )
+            )
+        self.particles = new_particles
+        self.n_particles = len(self.particles)
+        self._normalize_weights()
 
 
 # Backward-compatible alias to keep naming close to prior script.

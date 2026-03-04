@@ -17,6 +17,28 @@ _SENSOR_STATE = {
     "frames": None,
     "index": 0,
 }
+_STEP_CONFIG = {
+    "judge_method": "peak_dynamic",
+    "step_length_method": "weinberg",
+    "peak_sigma": 0.45,
+    "peak_prominence": 0.18,
+    "fixed_threshold": 10.7,
+    "zero_crossing_band": 0.22,
+    "min_samples_per_step": 4,
+    "freq_ratio_threshold": 3.0,
+    "autocorr_threshold": 0.35,
+    "weinberg_k": 0.45,
+    "fixed_step_length_m": 0.7,
+    "heading_offset_deg": 0.0,
+    "orientation_as_azimuth_deg": True,
+    "mag_sigma": 8.0,
+}
+_ALGO_STATE = {
+    "last_sensor_frame": None,
+    "last_step_samples": None,
+    "heading_rad": 0.0,
+    "heading_debug": {},
+}
 
 # ============================================================
 # Private Definitions
@@ -415,7 +437,7 @@ def _build_own_map_interface(
 # ============================================================
 
 # --- Public API: map factory (called by Initializer.create_context / temp scripts) ---
-def get_map(
+def _api_get_map(
     source="uji",
     data_root="data/raw",
     config_path="pyproject.toml",
@@ -570,6 +592,8 @@ def _load_uji_sensor_frames(test_path):
                     "mag": [mx, my, mz],
                     "acc": [ax, ay, az],
                     "gyro": [gx, gy, gz],
+                    "gyro_mode": "orientation_deg",
+                    "source": "uji",
                 }
             )
 
@@ -669,6 +693,8 @@ def _load_own_sensor_frames(own_data_dir):
                 "mag": [float(mag_x[i]), float(mag_y[i]), float(mag_z[i])],
                 "acc": [float(acc_x_i[i]), float(acc_y_i[i]), float(acc_z_i[i])],
                 "gyro": [float(gyr_x_i[i]), float(gyr_y_i[i]), float(gyr_z_i[i])],
+                "gyro_mode": "angular_rate_rad_s",
+                "source": "own",
             }
         )
     if not frames:
@@ -709,7 +735,7 @@ def _ensure_sensor_stream(source, data_root, uji_test_file, own_data_dir, reset=
 
 
 # TODO: Provide the ground-truth route for a test run.
-def get_true_route(
+def _api_get_true_route(
     source="uji",
     data_root="data/raw",
     uji_test_file="tt01.txt",
@@ -768,7 +794,7 @@ def get_true_route(
 
 
 # TODO: Return test length (number of sensor frames to consume).
-def get_test_len(
+def _api_get_test_len(
     source="uji",
     data_root="data/raw",
     uji_test_file="tt01.txt",
@@ -786,7 +812,7 @@ def get_test_len(
 
 
 # TODO: Fetch one frame of sensor data: magnetometer, accelerometer, gyroscope.
-def get_sensor(
+def _api_get_sensor(
     source="uji",
     data_root="data/raw",
     uji_test_file="tt01.txt",
@@ -805,32 +831,375 @@ def get_sensor(
         raise StopIteration("Sensor stream exhausted. Call get_test_len(...) to reset stream.")
     frame = frames[idx]
     _SENSOR_STATE["index"] = idx + 1
+    _ALGO_STATE["last_sensor_frame"] = frame
     return frame["mag"], frame["acc"], frame["gyro"]
 
 
 # TODO: Determine whether buffered sensor samples contain a completed step.
-def judge_step(samples):
-    pass
+def _extract_acc_magnitude(samples):
+    if samples is None:
+        return np.asarray([], dtype=float)
+    acc_list = []
+    for item in samples:
+        if item is None or len(item) < 1:
+            continue
+        acc = item[0]
+        if acc is None or len(acc) < 3:
+            continue
+        try:
+            ax, ay, az = float(acc[0]), float(acc[1]), float(acc[2])
+        except (TypeError, ValueError):
+            continue
+        acc_list.append([ax, ay, az])
+    if not acc_list:
+        return np.asarray([], dtype=float)
+    acc_arr = np.asarray(acc_list, dtype=float)
+    return np.linalg.norm(acc_arr, axis=1)
+
+
+def _smooth_signal(x, window=3):
+    x = np.asarray(x, dtype=float)
+    if x.size == 0:
+        return x
+    if window <= 1 or x.size < window:
+        return x
+    kernel = np.ones(window, dtype=float) / float(window)
+    return np.convolve(x, kernel, mode="same")
+
+
+def _api_available_step_judge_methods():
+    return [
+        "peak_dynamic",  # Time-domain dynamic threshold peak detection (default, most common)
+        "peak_fixed",  # Time-domain fixed-threshold peak detection
+        "zero_crossing",  # Time-domain zero-crossing with band constraint
+        "valley_peak",  # Time-domain valley-to-peak transition detection
+        "frequency_fft",  # Frequency-domain periodicity + peak gate
+        "autocorr",  # Autocorrelation periodicity + peak gate
+    ]
+
+
+def _api_set_step_judge_method(method="peak_dynamic", **kwargs):
+    method = str(method).lower()
+    if method not in available_step_judge_methods():
+        raise ValueError(f"Unsupported step judge method: {method}")
+    _STEP_CONFIG["judge_method"] = method
+    for key, value in kwargs.items():
+        if key in _STEP_CONFIG:
+            _STEP_CONFIG[key] = value
+
+
+def _api_judge_step(samples, method=None, **kwargs):
+    """Return True if current buffered samples likely contain one completed step.
+
+    Popular default method:
+    - peak_dynamic: filtered acceleration magnitude + dynamic threshold + local peak.
+
+    Other branches:
+    - peak_fixed
+    - zero_crossing
+    - valley_peak
+    """
+    if method is None:
+        method = _STEP_CONFIG["judge_method"]
+    method = str(method).lower()
+    cfg = dict(_STEP_CONFIG)
+    cfg.update(kwargs)
+
+    mag = _extract_acc_magnitude(samples)
+    n = int(mag.size)
+    if n < int(cfg["min_samples_per_step"]):
+        return False
+
+    sig = _smooth_signal(mag, window=3)
+    if sig.size < 3:
+        return False
+
+    # Candidate peak at the penultimate sample (streaming-safe with growing buffer).
+    c_idx = sig.size - 2
+    is_local_peak = bool(sig[c_idx] > sig[c_idx - 1] and sig[c_idx] >= sig[c_idx + 1])
+
+    hit = False
+    if method == "peak_dynamic":
+        mean_v = float(np.mean(sig))
+        std_v = float(np.std(sig))
+        threshold = mean_v + float(cfg["peak_sigma"]) * std_v
+        recent_min = float(np.min(sig[max(0, c_idx - 8) : c_idx + 1]))
+        prominence = float(sig[c_idx] - recent_min)
+        hit = bool(is_local_peak and sig[c_idx] > threshold and prominence > float(cfg["peak_prominence"]))
+    elif method == "peak_fixed":
+        threshold = float(cfg["fixed_threshold"])
+        hit = bool(is_local_peak and sig[c_idx] > threshold)
+    elif method == "zero_crossing":
+        d = sig - float(np.mean(sig))
+        if d.size >= 4:
+            # Zero-crossing near stream tail and sufficient oscillation amplitude.
+            cross = bool((d[-3] <= 0.0 < d[-2]) or (d[-2] <= 0.0 < d[-1]))
+            band = float(cfg["zero_crossing_band"])
+            enough_swing = bool(np.max(d) > band and np.min(d) < -band)
+            hit = bool(cross and enough_swing)
+    elif method == "valley_peak":
+        if is_local_peak:
+            recent = sig[max(0, c_idx - 10) : c_idx + 1]
+            valley = float(np.min(recent))
+            rise = float(sig[c_idx] - valley)
+            mean_v = float(np.mean(sig))
+            std_v = float(np.std(sig))
+            hit = bool(
+                rise > float(cfg["peak_prominence"])
+                and sig[c_idx] > mean_v + 0.25 * std_v
+            )
+    elif method == "frequency_fft":
+        if sig.size >= 16:
+            d = sig - float(np.mean(sig))
+            spec = np.abs(np.fft.rfft(d))
+            if spec.size >= 3:
+                spec[0] = 0.0
+                peak_bin = int(np.argmax(spec))
+                peak_val = float(spec[peak_bin])
+                mean_val = float(np.mean(spec[1:])) + 1e-9
+                ratio = peak_val / mean_val
+                hit = bool(ratio > float(cfg["freq_ratio_threshold"]) and is_local_peak)
+    elif method == "autocorr":
+        if sig.size >= 12:
+            d = sig - float(np.mean(sig))
+            ac = np.correlate(d, d, mode="full")[d.size - 1 :]
+            if ac.size >= 6 and ac[0] > 1e-12:
+                ac = ac / ac[0]
+                lag_min = 2
+                lag_max = min(ac.size - 1, max(4, int(sig.size * 0.5)))
+                if lag_max > lag_min:
+                    peak_corr = float(np.max(ac[lag_min : lag_max + 1]))
+                    hit = bool(peak_corr > float(cfg["autocorr_threshold"]) and is_local_peak)
+    else:
+        raise ValueError(
+            f"Unsupported step judge method: {method}. Available: {available_step_judge_methods()}"
+        )
+
+    if hit:
+        _ALGO_STATE["last_step_samples"] = list(samples)
+    return hit
 
 
 # TODO: Estimate step length from buffered samples.
-def get_step_len(samples):
-    pass
+def _api_get_step_len(samples, method=None, **kwargs):
+    if method is None:
+        method = _STEP_CONFIG["step_length_method"]
+    method = str(method).lower()
+    cfg = dict(_STEP_CONFIG)
+    cfg.update(kwargs)
+
+    mag = _extract_acc_magnitude(samples)
+    if mag.size == 0:
+        return float(cfg["fixed_step_length_m"])
+    mag_max = float(np.max(mag))
+    mag_min = float(np.min(mag))
+
+    if method == "weinberg":
+        # Weinberg: L = k * (Amax - Amin)^(1/4)
+        delta = max(mag_max - mag_min, 1e-9)
+        return float(cfg["weinberg_k"]) * float(delta ** 0.25)
+    if method == "fixed":
+        return float(cfg["fixed_step_length_m"])
+
+    raise ValueError("Unsupported step length method. Supported: ['weinberg', 'fixed']")
 
 
 # TODO: Estimate heading angle from buffered samples.
-def get_heading_angle(samples):
-    pass
+def _wrap_angle_pi(rad):
+    return float(((rad + math.pi) % (2.0 * math.pi)) - math.pi)
+
+
+def _heading_from_acc_mag(acc, mag):
+    ax, ay, az = float(acc[0]), float(acc[1]), float(acc[2])
+    mx, my, mz = float(mag[0]), float(mag[1]), float(mag[2])
+
+    norm_a = math.sqrt(ax * ax + ay * ay + az * az) + 1e-12
+    ax, ay, az = ax / norm_a, ay / norm_a, az / norm_a
+
+    roll = math.atan2(ay, az)
+    pitch = math.atan2(-ax, math.sqrt(ay * ay + az * az))
+
+    mx2 = mx * math.cos(pitch) + mz * math.sin(pitch)
+    my2 = (
+        mx * math.sin(roll) * math.sin(pitch)
+        + my * math.cos(roll)
+        - mz * math.sin(roll) * math.cos(pitch)
+    )
+    yaw = math.atan2(-my2, mx2)
+    return _wrap_angle_pi(yaw)
+
+
+def _azimuth_deg_to_xy_heading_rad(az_deg):
+    # Smartphone/compass azimuth: 0 deg = North, clockwise positive.
+    # XY heading used by motion model: 0 rad = +X(East), CCW positive.
+    return _wrap_angle_pi(math.radians(90.0 - float(az_deg)))
+
+
+def _api_get_heading_angle(samples, method="q_fused", dt=0.02, alpha=0.92):
+    if samples is None or len(samples) == 0:
+        return float(_ALGO_STATE["heading_rad"])
+
+    acc_arr = []
+    gyro_arr = []
+    mag_arr = []
+    for item in samples:
+        if item is None or len(item) < 3:
+            continue
+        acc, gyro, mag = item[0], item[1], item[2]
+        if len(acc) < 3 or len(gyro) < 3 or len(mag) < 3:
+            continue
+        acc_arr.append([float(acc[0]), float(acc[1]), float(acc[2])])
+        gyro_arr.append([float(gyro[0]), float(gyro[1]), float(gyro[2])])
+        mag_arr.append([float(mag[0]), float(mag[1]), float(mag[2])])
+    if not acc_arr:
+        return float(_ALGO_STATE["heading_rad"])
+
+    acc_arr = np.asarray(acc_arr, dtype=float)
+    gyro_arr = np.asarray(gyro_arr, dtype=float)
+    mag_arr = np.asarray(mag_arr, dtype=float)
+    last_frame = _ALGO_STATE.get("last_sensor_frame") or {}
+    sensor_source = str(last_frame.get("source", _SENSOR_STATE.get("source", "unknown"))).lower()
+    gyro_mode = str(last_frame.get("gyro_mode", "unknown"))
+    gyro_abs_med = float(np.median(np.abs(gyro_arr), axis=0).max()) if gyro_arr.size else 0.0
+
+    method = str(method).lower()
+    heading_offset_rad = math.radians(float(_STEP_CONFIG.get("heading_offset_deg", 0.0)))
+    azimuth_mode = bool(_STEP_CONFIG.get("orientation_as_azimuth_deg", True))
+
+    # If no explicit mode provided, infer from data scale.
+    if gyro_mode == "unknown":
+        if gyro_abs_med > 15.0:
+            gyro_mode = "orientation_deg"
+        else:
+            gyro_mode = "angular_rate_rad_s"
+
+    def gyro_heading_estimate():
+        if gyro_mode == "orientation_deg":
+            # UJI test files commonly provide orientation angles in degrees.
+            # Use the first channel (azimuth-like) as absolute heading.
+            heading_deg = float(np.mean(gyro_arr[:, 0]))
+            if azimuth_mode:
+                return _azimuth_deg_to_xy_heading_rad(heading_deg)
+            return _wrap_angle_pi(math.radians(heading_deg))
+        # Standard gyro angular-rate integration (z-yaw).
+        return _wrap_angle_pi(float(_ALGO_STATE["heading_rad"] + np.mean(gyro_arr[:, 2]) * float(dt) * len(gyro_arr)))
+
+    # Two-source strategy:
+    # - UJI: trust provided orientation angle (absolute heading-like).
+    # - OWN: use selected heading method (gyro/tilt-compass/fusion).
+    if sensor_source == "uji":
+        yaw = gyro_heading_estimate()
+    elif method == "gyro":
+        yaw = gyro_heading_estimate()
+    elif method == "tilt_compass":
+        yaw = _heading_from_acc_mag(acc_arr.mean(axis=0), mag_arr.mean(axis=0))
+    elif method == "q_fused":
+        # Quaternion-inspired fusion: integrate gyro yaw, correct with tilt-compensated mag yaw.
+        yaw_gyro = gyro_heading_estimate()
+        yaw_compass = _heading_from_acc_mag(acc_arr.mean(axis=0), mag_arr.mean(axis=0))
+        blend_alpha = float(alpha)
+        dyaw = _wrap_angle_pi(yaw_compass - yaw_gyro)
+        yaw = _wrap_angle_pi(yaw_gyro + (1.0 - blend_alpha) * dyaw)
+    else:
+        raise ValueError("Unsupported heading method. Supported: ['q_fused', 'tilt_compass', 'gyro']")
+
+    yaw = _wrap_angle_pi(float(yaw + heading_offset_rad))
+    _ALGO_STATE["heading_rad"] = float(yaw)
+    _ALGO_STATE["heading_debug"] = {
+        "method": method,
+        "sensor_source": sensor_source,
+        "gyro_mode": gyro_mode,
+        "gyro_abs_median": gyro_abs_med,
+        "heading_offset_deg": float(_STEP_CONFIG.get("heading_offset_deg", 0.0)),
+        "heading_rad": float(yaw),
+        "heading_deg": float(math.degrees(yaw)),
+    }
+    return float(yaw)
 
 
 # TODO: Extract geomagnetic feature/value used by the filter.
-def get_mag():
-    pass
+def _api_get_mag(method="norm_mean"):
+    samples = _ALGO_STATE.get("last_step_samples")
+    if samples:
+        mags = []
+        for item in samples:
+            if item is None or len(item) < 3:
+                continue
+            mag = item[2]
+            if mag is None or len(mag) < 3:
+                continue
+            m = float(np.linalg.norm(np.asarray(mag[:3], dtype=float)))
+            mags.append(m)
+        if mags:
+            if method == "norm_last":
+                return float(mags[-1])
+            return float(np.mean(mags))
+
+    frame = _ALGO_STATE.get("last_sensor_frame")
+    if frame and "mag" in frame:
+        m = np.asarray(frame["mag"][:3], dtype=float)
+        return float(np.linalg.norm(m))
+    return 0.0
 
 
 # TODO: Run one particle-filter update step and return updated position.
-def PF(step_len, heading_angle, geomag_list, pf_state):
-    pass
+def _ddtw_distance(a, b):
+    a = np.asarray(a, dtype=float).reshape(-1)
+    b = np.asarray(b, dtype=float).reshape(-1)
+    if a.size == 0 or b.size == 0:
+        return 0.0
+
+    # Use sequence-shape distance on raw magnetic magnitude series.
+    # This matches the practical behavior of the MATLAB baseline (dtw on sequence).
+    n, m = a.size, b.size
+    dp = np.full((n + 1, m + 1), np.inf, dtype=float)
+    dp[0, 0] = 0.0
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost = abs(a[i - 1] - b[j - 1])
+            dp[i, j] = cost + min(dp[i - 1, j], dp[i, j - 1], dp[i - 1, j - 1])
+    return float(dp[n, m] / (n + m))
+
+
+def _api_PF(step_len, heading_angle, geomag_list, pf_state):
+    if pf_state is None or not hasattr(pf_state, "particles"):
+        raise ValueError("PF requires a valid pf_state with particle storage.")
+
+    step_len = float(step_len)
+    heading_angle = float(heading_angle)
+    obs = np.asarray(list(geomag_list), dtype=float).reshape(-1)
+    sigma = float(getattr(pf_state, "weight_sigma", 3.0))
+    rng = getattr(pf_state, "rng", np.random.default_rng(42))
+    if getattr(pf_state, "map_points", None) is None:
+        # No map available: return dead-reckoning-like estimate.
+        return pf_state.get_pos()
+
+    for p in pf_state.particles:
+        theta = _wrap_angle_pi(heading_angle + float(rng.normal(0.0, 0.12)))
+        dist = max(0.0, step_len + float(rng.normal(0.0, 0.22)))
+        p.theta = theta
+        nx = float(p.x + dist * math.cos(theta))
+        ny = float(p.y + dist * math.sin(theta))
+        p.x, p.y = pf_state.clamp_to_map(nx, ny)
+
+        pred_mag = float(pf_state.map_magnitude(p.x, p.y))
+        p.mag_hist.append(pred_mag)
+        hist_len = int(max(1, min(len(obs), 100)))
+        pred_seq = np.asarray(p.mag_hist[-hist_len:], dtype=float)
+        obs_seq = obs[-hist_len:] if obs.size else np.asarray([pred_mag], dtype=float)
+        d = _ddtw_distance(obs_seq, pred_seq)
+        w_ddtw = math.exp(-((d * d) / (2.0 * sigma * sigma + 1e-12)))
+        p.weight = float(max(1e-12, w_ddtw))
+
+    pf_state._normalize_weights()
+
+    # KLD adaptive particle count.
+    target_n = pf_state.adapt_particle_count_kld()
+    ess = pf_state.effective_sample_size()
+    if ess < 0.5 * len(pf_state.particles) or target_n != len(pf_state.particles):
+        pf_state.cso_resample(target_count=target_n)
+
+    return pf_state.get_pos()
 
 
 def _parse_meta_groups(meta, defaults):
@@ -869,6 +1238,13 @@ def _to_xy_route(route, origin_lat=None, origin_lon=None):
         return np.asarray(x, dtype=float), np.asarray(y, dtype=float), "xy"
     # Fallback: assume [lat, lon] and render in geographic axes.
     return np.asarray(b, dtype=float), np.asarray(a, dtype=float), "latlon"
+
+
+def _to_xy_assume_xy(route):
+    arr = np.asarray(route, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] < 2:
+        raise ValueError("`route` must be a 2D sequence with at least 2 columns.")
+    return np.asarray(arr[:, 0], dtype=float), np.asarray(arr[:, 1], dtype=float), "xy"
 
 
 def _sensor_selector_set(group_tokens):
@@ -1032,14 +1408,17 @@ def _default_visualize_output_png(mode, meta):
 
 # --- Public API: visualization router (called by Experiment.run / temp scripts) ---
 # TODO: Visualize estimated track vs. route on the map.
-def visualize(
+def _api_visualize(
     pos_list=None,
+    pdr_list=None,
     route=None,
     geomag_map=None,
     mode="track",
     vis_resolution=0.2,
     meta=None,
     sensor_data=None,
+    error_series=None,
+    particle_counts=None,
     show=True,
     output_png=None,
 ):
@@ -1055,27 +1434,56 @@ def visualize(
         output_png = _default_visualize_output_png(mode=mode, meta=meta)
 
     if mode == "ujimap":
-        items = [str(x).strip().lower().rstrip("_") for x in (meta or ["map"]) if str(x).strip()]
+        if meta is None:
+            defaults = ["map"]
+            if route is not None:
+                defaults.append("true_route")
+            if pos_list is not None:
+                defaults.append("predicted")
+            if pdr_list is not None:
+                defaults.append("pdr")
+            if pos_list is not None and route is not None:
+                defaults.append("error")
+            if particle_counts is not None:
+                defaults.append("particles")
+            items = defaults
+        else:
+            items = [str(x).strip().lower().rstrip("_") for x in meta if str(x).strip()]
         group_set = set(items)
         has_map = "map" in group_set
         has_true_route = "true_route" in group_set
+        has_predicted = ("predicted" in group_set) or ("estimate" in group_set)
+        has_pdr = "pdr" in group_set
+        has_error_plot = "error" in group_set
+        has_particles_plot = "particles" in group_set
         sensor_selectors = _sensor_selector_set(items)
         has_sensor_plot = len(sensor_selectors) > 0
 
-        if not (has_map or has_true_route or has_sensor_plot):
+        if not (has_map or has_true_route or has_predicted or has_pdr or has_sensor_plot or has_error_plot or has_particles_plot):
             raise ValueError(f"Unsupported ujimap meta options: {items}")
 
-        if has_map and has_sensor_plot:
-            fig, axes = plt.subplots(1, 2, figsize=(16, 6), dpi=120)
-            ax_map, ax_sensor = axes[0], axes[1]
-        elif has_map or has_true_route:
-            fig, ax_map = plt.subplots(1, 1, figsize=(10, 7), dpi=120)
-            ax_sensor = None
-        else:
-            fig, ax_sensor = plt.subplots(1, 1, figsize=(12, 5), dpi=120)
-            ax_map = None
+        panel_order = []
+        if has_map or has_true_route or has_predicted or has_pdr:
+            panel_order.append("map")
+        if has_sensor_plot:
+            panel_order.append("sensor")
+        if has_error_plot:
+            panel_order.append("error")
+        if has_particles_plot:
+            panel_order.append("particles")
+        ncols = max(1, len(panel_order))
+        fig, axes = plt.subplots(1, ncols, figsize=(6 * ncols, 5), dpi=120)
+        if ncols == 1:
+            axes = [axes]
+        panel_axes = {name: axes[i] for i, name in enumerate(panel_order)}
+        ax_map = panel_axes.get("map")
+        ax_sensor = panel_axes.get("sensor")
+        ax_error = panel_axes.get("error")
+        ax_particles = panel_axes.get("particles")
 
         model = None
+        origin_lat = None
+        origin_lon = None
         if has_map and ax_map is not None:
             model, (grid_x, grid_y, grid_z) = _load_uji_grid_for_plot(geomag_map, vis_resolution)
             xx, yy = np.meshgrid(grid_x, grid_y)
@@ -1085,13 +1493,16 @@ def visualize(
             ax_map.set_xlabel("X (m)")
             ax_map.set_ylabel("Y (m)")
             ax_map.set_title("UJI Map")
+            if model is not None and "origin_lat" in model and "origin_lon" in model:
+                origin_lat = float(model["origin_lat"][0])
+                origin_lon = float(model["origin_lon"][0])
+
+        legend_enabled = False
 
         if has_true_route and ax_map is not None:
             if route is None:
                 raise ValueError("`route` is required when meta includes 'true_route'.")
-            if model is not None and "origin_lat" in model and "origin_lon" in model:
-                origin_lat = float(model["origin_lat"][0])
-                origin_lon = float(model["origin_lon"][0])
+            if origin_lat is not None and origin_lon is not None:
                 rx, ry, _ = _to_xy_route(route, origin_lat=origin_lat, origin_lon=origin_lon)
                 ax_map.plot(rx, ry, color="red", linewidth=2.0, label="True Route")
             else:
@@ -1103,9 +1514,44 @@ def visualize(
             if len(route) > 0:
                 ax_map.scatter([rx[0]], [ry[0]], color="lime", s=30, label="Start", zorder=3)
                 ax_map.scatter([rx[-1]], [ry[-1]], color="black", s=30, label="End", zorder=3)
-            title = "True Route" if not has_map else "UJI Map + True Route"
-            ax_map.set_title(title)
-            ax_map.legend(loc="best")
+            legend_enabled = True
+
+        if has_predicted and ax_map is not None:
+            if pos_list is None:
+                raise ValueError("`pos_list` is required when meta includes 'predicted'.")
+            px, py, _ = _to_xy_assume_xy(pos_list)
+            ax_map.plot(px, py, color="cyan", linewidth=1.7, label="Predicted")
+            if len(px) > 0:
+                ax_map.scatter([px[0]], [py[0]], color="deepskyblue", s=24, zorder=3)
+            legend_enabled = True
+
+        if has_pdr and ax_map is not None:
+            if pdr_list is None:
+                raise ValueError("`pdr_list` is required when meta includes 'pdr'.")
+            qx, qy, _ = _to_xy_assume_xy(pdr_list)
+            ax_map.plot(qx, qy, color="orange", linewidth=1.5, linestyle="--", label="PDR")
+            if len(qx) > 0:
+                ax_map.scatter([qx[0]], [qy[0]], color="goldenrod", s=22, zorder=3)
+            legend_enabled = True
+
+        if ax_map is not None:
+            if has_map:
+                base_title = "UJI Map"
+            else:
+                base_title = "Trajectories"
+            overlays = []
+            if has_true_route:
+                overlays.append("True Route")
+            if has_predicted:
+                overlays.append("Predicted")
+            if has_pdr:
+                overlays.append("PDR")
+            if overlays:
+                ax_map.set_title(f"{base_title} + " + " + ".join(overlays))
+            else:
+                ax_map.set_title(base_title)
+            if legend_enabled:
+                ax_map.legend(loc="best")
 
         if has_sensor_plot and ax_sensor is not None:
             t, acc, gyro, mag = _coerce_sensor_data(sensor_data)
@@ -1126,6 +1572,42 @@ def visualize(
             ax_sensor.set_ylabel("Value")
             ax_sensor.grid(True, alpha=0.25)
             ax_sensor.legend(loc="best", ncol=2, fontsize=8)
+
+        if has_error_plot and ax_error is not None:
+            if error_series is None:
+                if pos_list is None or route is None:
+                    raise ValueError("Need `pos_list` and `route` to compute error series, or provide `error_series`.")
+                px, py, _ = _to_xy_assume_xy(pos_list)
+                rx, ry, _ = _to_xy_route(route, origin_lat=origin_lat, origin_lon=origin_lon)
+                if rx.size == 0 or px.size == 0:
+                    raise ValueError("Cannot compute error series from empty route or predictions.")
+                route_idx = np.linspace(0, rx.size - 1, num=px.size)
+                route_idx = np.clip(np.rint(route_idx).astype(int), 0, rx.size - 1)
+                ref_x = rx[route_idx]
+                ref_y = ry[route_idx]
+                err = np.sqrt((px - ref_x) ** 2 + (py - ref_y) ** 2)
+            else:
+                err = np.asarray(error_series, dtype=float).reshape(-1)
+                if err.size == 0:
+                    raise ValueError("`error_series` must be non-empty when provided.")
+
+            ax_error.plot(np.arange(err.size), err, color="crimson", linewidth=1.8)
+            ax_error.set_title("Euclidean Error")
+            ax_error.set_xlabel("Iteration")
+            ax_error.set_ylabel("Distance")
+            ax_error.grid(True, alpha=0.3)
+
+        if has_particles_plot and ax_particles is not None:
+            if particle_counts is None:
+                raise ValueError("`particle_counts` is required when meta includes 'particles'.")
+            counts = np.asarray(particle_counts, dtype=float).reshape(-1)
+            if counts.size == 0:
+                raise ValueError("`particle_counts` must be non-empty.")
+            ax_particles.plot(np.arange(counts.size), counts, color="teal", linewidth=1.8)
+            ax_particles.set_title("Particle Count")
+            ax_particles.set_xlabel("Iteration")
+            ax_particles.set_ylabel("Num Particles")
+            ax_particles.grid(True, alpha=0.3)
 
         fig.tight_layout()
         saved_path = _save_figure(fig, output_png, 0, False)
@@ -1203,3 +1685,56 @@ def visualize(
 
     # TODO: Add track/route visualization for localization results.
     return
+
+
+# ============================================================
+# User Part (Public API)
+# ============================================================
+
+
+def get_map(*args, **kwargs):
+    return _api_get_map(*args, **kwargs)
+
+
+def get_true_route(*args, **kwargs):
+    return _api_get_true_route(*args, **kwargs)
+
+
+def get_test_len(*args, **kwargs):
+    return _api_get_test_len(*args, **kwargs)
+
+
+def get_sensor(*args, **kwargs):
+    return _api_get_sensor(*args, **kwargs)
+
+
+def available_step_judge_methods(*args, **kwargs):
+    return _api_available_step_judge_methods(*args, **kwargs)
+
+
+def set_step_judge_method(*args, **kwargs):
+    return _api_set_step_judge_method(*args, **kwargs)
+
+
+def judge_step(*args, **kwargs):
+    return _api_judge_step(*args, **kwargs)
+
+
+def get_step_len(*args, **kwargs):
+    return _api_get_step_len(*args, **kwargs)
+
+
+def get_heading_angle(*args, **kwargs):
+    return _api_get_heading_angle(*args, **kwargs)
+
+
+def get_mag(*args, **kwargs):
+    return _api_get_mag(*args, **kwargs)
+
+
+def PF(*args, **kwargs):
+    return _api_PF(*args, **kwargs)
+
+
+def visualize(*args, **kwargs):
+    return _api_visualize(*args, **kwargs)

@@ -7,6 +7,12 @@
     <list default="true" id="47dcb94b-da96-48e1-90fa-537fc3bc1cd7" name="更改" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Geomag/algorithms.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/algorithms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/experiment.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/experiment.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/initiation.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/initiation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main_get_sensor_and_len.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_get_sensor_and_len.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -14,7 +20,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="309" />
+    <option name="cachedIndexableFilesCount" value="321" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -34,6 +40,9 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "Python.algorithms.executor": "Run",
+    "Python.experiment.executor": "Run",
+    "Python.main.executor": "Run",
     "Python.main_get_map_temp.executor": "Run",
     "Python.main_get_sensor_and_len.executor": "Run",
     "Python.main_get_true_route.executor": "Run",
@@ -76,7 +85,8 @@
       <updated>1771634579757</updated>
       <workItem from="1771634580809" duration="10000" />
       <workItem from="1772434396094" duration="8089000" />
-      <workItem from="1772522046658" duration="6257000" />
+      <workItem from="1772522046658" duration="6398000" />
+      <workItem from="1772607745406" duration="11528000" />
     </task>
     <servers />
   </component>
@@ -87,5 +97,8 @@
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_sensor_and_len.coverage" NAME="main_get_sensor_and_len Coverage Results" MODIFIED="1772526159842" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_map_temp.coverage" NAME="main_get_map_temp Coverage Results" MODIFIED="1772441114092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_true_route.coverage" NAME="main_get_true_route Coverage Results" MODIFIED="1772524205006" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main.coverage" NAME="main Coverage Results" MODIFIED="1772631813821" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$algorithms.coverage" NAME="algorithms Coverage Results" MODIFIED="1772612117052" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Geomag" />
+    <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$experiment.coverage" NAME="experiment Coverage Results" MODIFIED="1772628754184" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Geomag" />
   </component>
 </project>

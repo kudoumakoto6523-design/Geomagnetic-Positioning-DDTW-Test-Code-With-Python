@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from utils import collect_sensor_stream, get_uji_map
+from Geomag.utils import collect_sensor_stream, get_uji_map
 
 from Geomag.algorithms import get_sensor, get_test_len, get_true_route, visualize
 
