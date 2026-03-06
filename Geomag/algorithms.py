@@ -808,6 +808,8 @@ def _api_get_test_len(
         own_data_dir=own_data_dir,
         reset=True,
     )
+    _ALGO_STATE["heading_rad"] = 0.0
+    _ALGO_STATE["heading_debug"] = {}
     return len(frames)
 
 
@@ -1035,7 +1037,7 @@ def _azimuth_deg_to_xy_heading_rad(az_deg):
     return _wrap_angle_pi(math.radians(90.0 - float(az_deg)))
 
 
-def _api_get_heading_angle(samples, method="q_fused", dt=0.02, alpha=0.92):
+def _api_get_heading_angle(samples, method="gyro", dt=0.02, alpha=None):
     if samples is None or len(samples) == 0:
         return float(_ALGO_STATE["heading_rad"])
 
@@ -1086,22 +1088,15 @@ def _api_get_heading_angle(samples, method="q_fused", dt=0.02, alpha=0.92):
 
     # Two-source strategy:
     # - UJI: trust provided orientation angle (absolute heading-like).
-    # - OWN: use selected heading method (gyro/tilt-compass/fusion).
+    # - OWN: keep heading simple: use gyro by default; tilt-compass is optional.
     if sensor_source == "uji":
         yaw = gyro_heading_estimate()
-    elif method == "gyro":
+    elif method in {"gyro", "q_fused"}:
         yaw = gyro_heading_estimate()
     elif method == "tilt_compass":
         yaw = _heading_from_acc_mag(acc_arr.mean(axis=0), mag_arr.mean(axis=0))
-    elif method == "q_fused":
-        # Quaternion-inspired fusion: integrate gyro yaw, correct with tilt-compensated mag yaw.
-        yaw_gyro = gyro_heading_estimate()
-        yaw_compass = _heading_from_acc_mag(acc_arr.mean(axis=0), mag_arr.mean(axis=0))
-        blend_alpha = float(alpha)
-        dyaw = _wrap_angle_pi(yaw_compass - yaw_gyro)
-        yaw = _wrap_angle_pi(yaw_gyro + (1.0 - blend_alpha) * dyaw)
     else:
-        raise ValueError("Unsupported heading method. Supported: ['q_fused', 'tilt_compass', 'gyro']")
+        raise ValueError("Unsupported heading method. Supported: ['gyro', 'tilt_compass', 'q_fused']")
 
     yaw = _wrap_angle_pi(float(yaw + heading_offset_rad))
     _ALGO_STATE["heading_rad"] = float(yaw)
@@ -1111,6 +1106,7 @@ def _api_get_heading_angle(samples, method="q_fused", dt=0.02, alpha=0.92):
         "gyro_mode": gyro_mode,
         "gyro_abs_median": gyro_abs_med,
         "heading_offset_deg": float(_STEP_CONFIG.get("heading_offset_deg", 0.0)),
+        "alpha_ignored": alpha if method == "q_fused" else None,
         "heading_rad": float(yaw),
         "heading_deg": float(math.degrees(yaw)),
     }
@@ -1418,6 +1414,7 @@ def _api_visualize(
     meta=None,
     sensor_data=None,
     error_series=None,
+    pdr_error_series=None,
     particle_counts=None,
     show=True,
     output_png=None,
@@ -1574,28 +1571,68 @@ def _api_visualize(
             ax_sensor.legend(loc="best", ncol=2, fontsize=8)
 
         if has_error_plot and ax_error is not None:
-            if error_series is None:
-                if pos_list is None or route is None:
-                    raise ValueError("Need `pos_list` and `route` to compute error series, or provide `error_series`.")
-                px, py, _ = _to_xy_assume_xy(pos_list)
-                rx, ry, _ = _to_xy_route(route, origin_lat=origin_lat, origin_lon=origin_lon)
-                if rx.size == 0 or px.size == 0:
-                    raise ValueError("Cannot compute error series from empty route or predictions.")
-                route_idx = np.linspace(0, rx.size - 1, num=px.size)
-                route_idx = np.clip(np.rint(route_idx).astype(int), 0, rx.size - 1)
-                ref_x = rx[route_idx]
-                ref_y = ry[route_idx]
-                err = np.sqrt((px - ref_x) ** 2 + (py - ref_y) ** 2)
-            else:
-                err = np.asarray(error_series, dtype=float).reshape(-1)
-                if err.size == 0:
-                    raise ValueError("`error_series` must be non-empty when provided.")
+            def _compute_track_error(track_list):
+                tx, ty, _ = _to_xy_assume_xy(track_list)
+                rx2, ry2, _ = _to_xy_route(route, origin_lat=origin_lat, origin_lon=origin_lon)
+                if rx2.size == 0 or tx.size == 0:
+                    return np.asarray([], dtype=float)
+                route_idx2 = np.linspace(0, rx2.size - 1, num=tx.size)
+                route_idx2 = np.clip(np.rint(route_idx2).astype(int), 0, rx2.size - 1)
+                ref_x2 = rx2[route_idx2]
+                ref_y2 = ry2[route_idx2]
+                return np.sqrt((tx - ref_x2) ** 2 + (ty - ref_y2) ** 2)
 
-            ax_error.plot(np.arange(err.size), err, color="crimson", linewidth=1.8)
+            pf_err = None
+            pdr_err = None
+
+            if error_series is not None:
+                pf_err = np.asarray(error_series, dtype=float).reshape(-1)
+                if pf_err.size == 0:
+                    raise ValueError("`error_series` must be non-empty when provided.")
+            elif pos_list is not None and route is not None:
+                pf_err = _compute_track_error(pos_list)
+
+            if pdr_error_series is not None:
+                pdr_err = np.asarray(pdr_error_series, dtype=float).reshape(-1)
+                if pdr_err.size == 0:
+                    raise ValueError("`pdr_error_series` must be non-empty when provided.")
+            elif pdr_list is not None and route is not None:
+                pdr_err = _compute_track_error(pdr_list)
+
+            if (pf_err is None or pf_err.size == 0) and (pdr_err is None or pdr_err.size == 0):
+                raise ValueError(
+                    "Need (`pos_list` and `route`) and/or (`pdr_list` and `route`) to compute error plot, "
+                    "or provide `error_series` / `pdr_error_series`."
+                )
+
+            if pf_err is not None and pf_err.size > 0:
+                ax_error.plot(
+                    np.arange(pf_err.size),
+                    pf_err,
+                    color="crimson",
+                    linewidth=1.8,
+                    marker="o" if pf_err.size < 2 else None,
+                    markersize=4,
+                    label="PF Error",
+                )
+            if pdr_err is not None and pdr_err.size > 0:
+                ax_error.plot(
+                    np.arange(pdr_err.size),
+                    pdr_err,
+                    color="orange",
+                    linestyle="--",
+                    linewidth=1.8,
+                    marker="o" if pdr_err.size < 2 else None,
+                    markersize=4,
+                    label="PDR Error",
+                )
+
             ax_error.set_title("Euclidean Error")
             ax_error.set_xlabel("Iteration")
             ax_error.set_ylabel("Distance")
             ax_error.grid(True, alpha=0.3)
+            if (pf_err is not None and pf_err.size > 0) or (pdr_err is not None and pdr_err.size > 0):
+                ax_error.legend(loc="best")
 
         if has_particles_plot and ax_particles is not None:
             if particle_counts is None:

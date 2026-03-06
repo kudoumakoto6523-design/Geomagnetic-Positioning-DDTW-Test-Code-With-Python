@@ -6,6 +6,81 @@ This repository is organized around a geomagnetic indoor positioning pipeline th
 - Geomagnetic matching
 - Particle filtering (with DDTW-oriented weighting design)
 
+## Lego-Style Pipeline (PyTorch-like Usage)
+The project supports `Module/Sequential`-style PF composition, so you can reorder stages like `torch.nn.Sequential`.
+
+```python
+from Geomag import (
+    Experiment,
+    PFConfig,
+    Initializer,
+    PDRConfig,
+)
+
+ctx = Initializer(
+    num_runs=1,
+    window_size=400,
+    route_source="uji",
+    sensor_source="uji",
+    uji_test_file="tt01.txt",
+).create_context()
+
+pdr = PDRConfig(
+    step_judge="peak_dynamic",
+    step_judge_params={"peak_sigma": 0.40, "peak_prominence": 0.16},
+    step_length="weinberg",
+    step_length_params={"weinberg_k": 0.45},
+    heading="gyro",
+    heading_params={"dt": 0.02},
+    mag="norm_mean",
+)
+
+pf = PFConfig(
+    state_params={"num_particles": 500, "min_particles": 120, "max_particles": 5000},
+    motion="gaussian",
+    motion_params={"heading_noise_std": 0.10, "step_noise_std": 0.20},
+    weight="ddtw",
+    weight_params={"sigma": 6.0, "max_hist": 80},
+    particle_size="kld",
+    particle_size_params={"epsilon": 0.10},
+    resample_trigger="ess_or_target",
+    resample_trigger_params={"ess_ratio_threshold": 0.45},
+    resample="cso",
+)
+
+experiment = Experiment(ctx, pdr_config=pdr, pf_config=pf)
+result = experiment.run(show=True)
+```
+
+For advanced usage, you can still reorder PF stages:
+
+```python
+from Geomag import (
+    ParticleSizeStage,
+    PredictStage,
+    ResampleDecisionStage,
+    ResampleStage,
+    UpdateStage,
+    build_pf_sequential,
+)
+
+pf = build_pf_sequential(
+    ("predict", PredictStage(motion="gaussian")),
+    ("particle_size", ParticleSizeStage(particle_size="kld")),
+    ("update", UpdateStage(weight="ddtw")),
+    ("resample_decision", ResampleDecisionStage(trigger="ess_or_target")),
+    ("resample", ResampleStage(resample="cso")),
+)
+```
+
+You can inspect selectable blocks at runtime:
+
+```python
+print(GeomagPipeline.available_blocks())
+print(GeomagPipeline.describe_configs())
+print(Experiment.describe_api())
+```
+
 Current structure separates orchestration and algorithms:
 - `main.py`: thin runtime entrypoint (`Initializer -> Experiment`)
 - `Geomag/initiation.py`: initialization orchestration

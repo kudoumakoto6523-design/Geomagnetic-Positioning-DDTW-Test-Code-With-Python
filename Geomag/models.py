@@ -32,7 +32,7 @@ class PFState:
         self,
         init_pos,
         mag_map,
-        num_particles=500,
+        num_particles=50000,
         seed=42,
         weight_sigma=8.0,
         min_particles=1000,
@@ -258,6 +258,8 @@ class PFState:
                 nx = c.x + 0.8 * (leader.x - c.x) + float(self.rng.normal(0.0, 0.3))
                 ny = c.y + 0.8 * (leader.y - c.y) + float(self.rng.normal(0.0, 0.3))
                 nt = c.theta + 0.6 * (leader.theta - c.theta) + float(self.rng.normal(0.0, 0.08))
+
+            nx, ny = self.clamp_to_map(nx, ny)
 
             new_particles.append(
                 Particle(

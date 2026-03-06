@@ -6,13 +6,12 @@
   <component name="ChangeListManager">
     <list default="true" id="47dcb94b-da96-48e1-90fa-537fc3bc1cd7" name="更改" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Geomag/algorithms.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/algorithms.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Geomag/experiment.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/experiment.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Geomag/initiation.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/initiation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Geomag/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_get_sensor_and_len.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_get_sensor_and_len.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,7 +19,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="321" />
+    <option name="cachedIndexableFilesCount" value="363" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -37,36 +36,36 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "Python.algorithms.executor": "Run",
-    "Python.experiment.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.main_get_map_temp.executor": "Run",
-    "Python.main_get_sensor_and_len.executor": "Run",
-    "Python.main_get_true_route.executor": "Run",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "ai.playground.ignore.import.keys.banner.in.settings": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "/Users/mac/Desktop/Folder/DachuangProject_PythonCode4Testing/Geomagnetic-Positioning-DDTW-Test-Code-With-Python",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "com.jetbrains.python.black.configuration.BlackFormatterConfigurable",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Python.algorithms.executor&quot;: &quot;Run&quot;,
+    &quot;Python.experiment.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main_get_map_temp.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main_get_sensor_and_len.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main_get_true_route.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/mac/Desktop/Folder/DachuangProject_PythonCode4Testing/Geomagnetic-Positioning-DDTW-Test-Code-With-Python&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.black.configuration.BlackFormatterConfigurable&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -86,7 +85,8 @@
       <workItem from="1771634580809" duration="10000" />
       <workItem from="1772434396094" duration="8089000" />
       <workItem from="1772522046658" duration="6398000" />
-      <workItem from="1772607745406" duration="11528000" />
+      <workItem from="1772607745406" duration="11883000" />
+      <workItem from="1772785482029" duration="11481000" />
     </task>
     <servers />
   </component>
@@ -97,7 +97,7 @@
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_sensor_and_len.coverage" NAME="main_get_sensor_and_len Coverage Results" MODIFIED="1772526159842" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_map_temp.coverage" NAME="main_get_map_temp Coverage Results" MODIFIED="1772441114092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_true_route.coverage" NAME="main_get_true_route Coverage Results" MODIFIED="1772524205006" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main.coverage" NAME="main Coverage Results" MODIFIED="1772631813821" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main.coverage" NAME="main Coverage Results" MODIFIED="1772801889287" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$algorithms.coverage" NAME="algorithms Coverage Results" MODIFIED="1772612117052" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Geomag" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$experiment.coverage" NAME="experiment Coverage Results" MODIFIED="1772628754184" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Geomag" />
   </component>
