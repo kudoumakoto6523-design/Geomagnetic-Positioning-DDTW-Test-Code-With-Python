@@ -1,0 +1,13 @@
+{
+  "steps": 54,
+  "resampled_steps": 0,
+  "final_num_particles": 5000,
+  "pf_mean": 1.9283257252377053,
+  "pdr_mean": 1.9286455920701884,
+  "pf_better": 40,
+  "pf_worse": 14,
+  "pf_pdr_delta_mean": 0.0006696291114877832,
+  "pf_pdr_delta_final": 0.0013527757196589143,
+  "ess_ratio_mean": 0.9999999582874969,
+  "ess_ratio_min": 0.9999999373094693
+}

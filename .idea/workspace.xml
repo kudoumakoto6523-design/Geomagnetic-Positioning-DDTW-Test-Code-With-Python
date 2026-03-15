@@ -4,14 +4,31 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="47dcb94b-da96-48e1-90fa-537fc3bc1cd7" name="更改" comment="" />
+    <list default="true" id="47dcb94b-da96-48e1-90fa-537fc3bc1cd7" name="更改" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/algorithms.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/algorithms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/blocks.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/blocks.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Geomag/pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/Geomag/pipeline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/processed/uji_mag_grid_kriging.png" beforeDir="false" afterPath="$PROJECT_DIR$/data/processed/uji_mag_grid_kriging.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/processed/uji_mag_grid_preview_kriging.npz" beforeDir="false" afterPath="$PROJECT_DIR$/data/processed/uji_mag_grid_preview_kriging.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/geomagnetic_positioning_ddtw.egg-info/SOURCES.txt" beforeDir="false" afterPath="$PROJECT_DIR$/geomagnetic_positioning_ddtw.egg-info/SOURCES.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="406" />
+    <option name="cachedIndexableFilesCount" value="493" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -37,6 +54,9 @@
     &quot;Python.main_get_map_temp.executor&quot;: &quot;Run&quot;,
     &quot;Python.main_get_sensor_and_len.executor&quot;: &quot;Run&quot;,
     &quot;Python.main_get_true_route.executor&quot;: &quot;Run&quot;,
+    &quot;Python.run_param_experiment.executor&quot;: &quot;Run&quot;,
+    &quot;Python.run_uji_best_demo.executor&quot;: &quot;Run&quot;,
+    &quot;Python.run_uji_fusion_search.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
@@ -47,7 +67,7 @@
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/mac/Desktop/Folder/DachuangProject_PythonCode4Testing/Geomagnetic-Positioning-DDTW-Test-Code-With-Python&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/mac/Desktop/Folder/Dachuang_original/Lego-like-Geomagnetic-Positioning&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -79,6 +99,11 @@
       <workItem from="1772522046658" duration="6398000" />
       <workItem from="1772607745406" duration="11883000" />
       <workItem from="1772785482029" duration="15317000" />
+      <workItem from="1773217725692" duration="2504000" />
+      <workItem from="1773224567897" duration="4625000" />
+      <workItem from="1773235122624" duration="5858000" />
+      <workItem from="1773382439479" duration="2305000" />
+      <workItem from="1773541377740" duration="3313000" />
     </task>
     <servers />
   </component>
@@ -87,8 +112,12 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_sensor_and_len.coverage" NAME="main_get_sensor_and_len Coverage Results" MODIFIED="1772526159842" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Lego_like_Geomagnetic_Positioning$run_uji_best_demo.coverage" NAME="run_uji_best_demo Coverage Results" MODIFIED="1773236791663" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_map_temp.coverage" NAME="main_get_map_temp Coverage Results" MODIFIED="1772441114092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Lego_like_Geomagnetic_Positioning$run_param_experiment.coverage" NAME="run_param_experiment Coverage Results" MODIFIED="1773219365804" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Lego_like_Geomagnetic_Positioning$main.coverage" NAME="main Coverage Results" MODIFIED="1773543770805" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main_get_true_route.coverage" NAME="main_get_true_route Coverage Results" MODIFIED="1772524205006" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Lego_like_Geomagnetic_Positioning$run_uji_fusion_search.coverage" NAME="run_uji_fusion_search Coverage Results" MODIFIED="1773235285226" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$main.coverage" NAME="main Coverage Results" MODIFIED="1772805699336" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$algorithms.coverage" NAME="algorithms Coverage Results" MODIFIED="1772612117052" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Geomag" />
     <SUITE FILE_PATH="coverage/Geomagnetic_Positioning_DDTW_Test_Code_With_Python$experiment.coverage" NAME="experiment Coverage Results" MODIFIED="1772628754184" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Geomag" />

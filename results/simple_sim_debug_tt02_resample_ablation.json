@@ -1,0 +1,24 @@
+[
+  {
+    "case": "full_stages",
+    "steps": 54,
+    "pf_mean": 1.971313461169034,
+    "pdr_mean": 1.9286455920701884,
+    "pf_better": 0,
+    "pf_worse": 54,
+    "pf_pdr_delta_mean": 0.07864936449632856,
+    "pf_pdr_delta_final": 0.08010608031389659,
+    "final_num_particles": 2000
+  },
+  {
+    "case": "no_resample_stages",
+    "steps": 54,
+    "pf_mean": 1.9283257252377053,
+    "pdr_mean": 1.9286455920701884,
+    "pf_better": 40,
+    "pf_worse": 14,
+    "pf_pdr_delta_mean": 0.0006696291114877832,
+    "pf_pdr_delta_final": 0.0013527757196589143,
+    "final_num_particles": 5000
+  }
+]

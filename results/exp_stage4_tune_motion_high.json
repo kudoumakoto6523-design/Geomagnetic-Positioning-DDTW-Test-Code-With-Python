@@ -1,0 +1,44 @@
+[
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 5.0,
+      "window": 150,
+      "heading": "q_fused",
+      "raw_dtw": false,
+      "latent_bias": true,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.238453976334311,
+      "median": 8.530810038552454,
+      "p95": 11.18938445889859,
+      "final": 8.34411247958022
+    },
+    "pf_error": {
+      "mean": 8.030581682402188,
+      "median": 8.115286978332653,
+      "p95": 11.176630154859518,
+      "final": 8.115286978332653
+    },
+    "pf_minus_pdr_final_m": -0.22882550124756662,
+    "steps": 31,
+    "ess": {
+      "mean": 454.09186114977376,
+      "median": 399.5486457150279,
+      "p95": 676.4999999999961,
+      "final": 602.9999999999957
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 603,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 603,
+      "resampled_steps": 12
+    },
+    "output_png": null
+  }
+]

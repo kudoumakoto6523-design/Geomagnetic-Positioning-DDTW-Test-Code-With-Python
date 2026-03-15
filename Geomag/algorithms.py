@@ -1086,15 +1086,22 @@ def _api_get_heading_angle(samples, method="gyro", dt=0.02, alpha=None):
         # Standard gyro angular-rate integration (z-yaw).
         return _wrap_angle_pi(float(_ALGO_STATE["heading_rad"] + np.mean(gyro_arr[:, 2]) * float(dt) * len(gyro_arr)))
 
-    # Two-source strategy:
-    # - UJI: trust provided orientation angle (absolute heading-like).
-    # - OWN: keep heading simple: use gyro by default; tilt-compass is optional.
-    if sensor_source == "uji":
-        yaw = gyro_heading_estimate()
-    elif method in {"gyro", "q_fused"}:
-        yaw = gyro_heading_estimate()
+    yaw_gyro = gyro_heading_estimate()
+    yaw_compass = _heading_from_acc_mag(acc_arr.mean(axis=0), mag_arr.mean(axis=0))
+    alpha_used = None
+
+    if method == "gyro":
+        yaw = yaw_gyro
     elif method == "tilt_compass":
-        yaw = _heading_from_acc_mag(acc_arr.mean(axis=0), mag_arr.mean(axis=0))
+        yaw = yaw_compass
+    elif method == "q_fused":
+        # Complementary fusion between gyro-like heading and tilt-compensated compass heading.
+        # Use a high alpha for UJI because orientation channel is typically stable.
+        alpha_used = 0.98 if alpha is None and sensor_source == "uji" else (0.90 if alpha is None else float(alpha))
+        alpha_used = float(np.clip(alpha_used, 0.0, 1.0))
+        sy = alpha_used * math.sin(yaw_gyro) + (1.0 - alpha_used) * math.sin(yaw_compass)
+        cy = alpha_used * math.cos(yaw_gyro) + (1.0 - alpha_used) * math.cos(yaw_compass)
+        yaw = _wrap_angle_pi(math.atan2(sy, cy))
     else:
         raise ValueError("Unsupported heading method. Supported: ['gyro', 'tilt_compass', 'q_fused']")
 
@@ -1106,7 +1113,9 @@ def _api_get_heading_angle(samples, method="gyro", dt=0.02, alpha=None):
         "gyro_mode": gyro_mode,
         "gyro_abs_median": gyro_abs_med,
         "heading_offset_deg": float(_STEP_CONFIG.get("heading_offset_deg", 0.0)),
-        "alpha_ignored": alpha if method == "q_fused" else None,
+        "alpha_used": alpha_used,
+        "yaw_gyro_deg": float(math.degrees(yaw_gyro)),
+        "yaw_compass_deg": float(math.degrees(yaw_compass)),
         "heading_rad": float(yaw),
         "heading_deg": float(math.degrees(yaw)),
     }
@@ -1139,22 +1148,48 @@ def _api_get_mag(method="norm_mean"):
 
 
 # TODO: Run one particle-filter update step and return updated position.
-def _ddtw_distance(a, b):
-    a = np.asarray(a, dtype=float).reshape(-1)
-    b = np.asarray(b, dtype=float).reshape(-1)
+def _derivative_sequence(x):
+    x = np.asarray(x, dtype=float).reshape(-1)
+    if x.size <= 1:
+        return x.copy()
+    if x.size == 2:
+        return np.asarray([x[1] - x[0]], dtype=float)
+    d = np.empty_like(x, dtype=float)
+    d[0] = float(x[1] - x[0])
+    d[-1] = float(x[-1] - x[-2])
+    d[1:-1] = 0.5 * (x[2:] - x[:-2])
+    return d
+
+
+def _zscore(x):
+    x = np.asarray(x, dtype=float).reshape(-1)
+    if x.size == 0:
+        return x
+    mu = float(np.mean(x))
+    sd = float(np.std(x))
+    if sd < 1e-8:
+        return x - mu
+    return (x - mu) / sd
+
+
+def _ddtw_distance(a, b, window_ratio=0.25):
+    a = _zscore(_derivative_sequence(a))
+    b = _zscore(_derivative_sequence(b))
     if a.size == 0 or b.size == 0:
         return 0.0
 
-    # Use sequence-shape distance on raw magnetic magnitude series.
-    # This matches the practical behavior of the MATLAB baseline (dtw on sequence).
-    n, m = a.size, b.size
+    n, m = int(a.size), int(b.size)
+    window = max(abs(n - m), int(max(n, m) * float(window_ratio)), 4)
     dp = np.full((n + 1, m + 1), np.inf, dtype=float)
     dp[0, 0] = 0.0
     for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            cost = abs(a[i - 1] - b[j - 1])
+        j0 = max(1, i - window)
+        j1 = min(m, i + window)
+        ai = float(a[i - 1])
+        for j in range(j0, j1 + 1):
+            cost = abs(ai - float(b[j - 1]))
             dp[i, j] = cost + min(dp[i - 1, j], dp[i, j - 1], dp[i - 1, j - 1])
-    return float(dp[n, m] / (n + m))
+    return float(dp[n, m] / max(1, n + m))
 
 
 def _api_PF(step_len, heading_angle, geomag_list, pf_state):
@@ -1170,6 +1205,7 @@ def _api_PF(step_len, heading_angle, geomag_list, pf_state):
         # No map available: return dead-reckoning-like estimate.
         return pf_state.get_pos()
 
+    raw_weights = []
     for p in pf_state.particles:
         theta = _wrap_angle_pi(heading_angle + float(rng.normal(0.0, 0.12)))
         dist = max(0.0, step_len + float(rng.normal(0.0, 0.22)))
@@ -1185,9 +1221,18 @@ def _api_PF(step_len, heading_angle, geomag_list, pf_state):
         obs_seq = obs[-hist_len:] if obs.size else np.asarray([pred_mag], dtype=float)
         d = _ddtw_distance(obs_seq, pred_seq)
         w_ddtw = math.exp(-((d * d) / (2.0 * sigma * sigma + 1e-12)))
-        p.weight = float(max(1e-12, w_ddtw))
+        w = float(max(1e-12, w_ddtw))
+        p.weight = w
+        raw_weights.append(w)
 
-    pf_state._normalize_weights()
+    total_weight = float(sum(raw_weights))
+    if total_weight <= 1e-12:
+        uniform_weight = 1.0 / max(len(pf_state.particles), 1)
+        for p in pf_state.particles:
+            p.weight = uniform_weight
+    else:
+        for p in pf_state.particles:
+            p.weight = float(max(p.weight, 0.0) / total_weight)
 
     # KLD adaptive particle count.
     target_n = pf_state.adapt_particle_count_kld()

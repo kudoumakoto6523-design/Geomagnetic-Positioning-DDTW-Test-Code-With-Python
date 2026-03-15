@@ -1,0 +1,70 @@
+{
+  "cases": [
+    {
+      "case_id": "N_pf_only",
+      "summary": {
+        "avg_pdr_final_m": 5.468418030563228,
+        "avg_pf_final_m": 3.835233964320568,
+        "avg_fused_final_m": 3.835233964320568,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.8312194764854017,
+        "avg_ess_ratio": 0.999173238300433,
+        "avg_w_pf_mean": 1.0
+      },
+      "fusion": {
+        "mode": "pf_only",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": false,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    },
+    {
+      "case_id": "N_weighted50_fb",
+      "summary": {
+        "avg_pdr_final_m": 3.9800991876410987,
+        "avg_pf_final_m": 3.835233964320568,
+        "avg_fused_final_m": 3.9044200810741883,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.1823121340711471,
+        "avg_ess_ratio": 0.999173238300433,
+        "avg_w_pf_mean": 0.5
+      },
+      "fusion": {
+        "mode": "weighted",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": true,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    },
+    {
+      "case_id": "N_adaptive_fb",
+      "summary": {
+        "avg_pdr_final_m": 3.930642677415936,
+        "avg_pf_final_m": 3.835233964320568,
+        "avg_fused_final_m": 3.8577592951877304,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.14250659283447645,
+        "avg_ess_ratio": 0.999173238300433,
+        "avg_w_pf_mean": 0.7215058881202735
+      },
+      "fusion": {
+        "mode": "adaptive",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": true,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    }
+  ]
+}

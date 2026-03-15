@@ -35,12 +35,14 @@ class PFState:
         num_particles=50000,
         seed=42,
         weight_sigma=8.0,
+        map_knn_k=10,
         min_particles=1000,
         max_particles=100000000,
     ):
         self.mag_map = mag_map
         self.rng = np.random.default_rng(seed)
         self.weight_sigma = float(weight_sigma)
+        self.map_knn_k = max(1, int(map_knn_k))
         self.min_particles = int(min_particles)
         self.max_particles = int(max_particles)
         self.n_particles = int(np.clip(num_particles, self.min_particles, self.max_particles))
@@ -183,7 +185,7 @@ class PFState:
             return 0.0
         return float(1.0 / denom)
 
-    def map_magnitude(self, x, y, k=10):
+    def map_magnitude(self, x, y, k=None):
         if self.map_points is None:
             return 0.0
         px = self.map_points["x"]
@@ -194,7 +196,8 @@ class PFState:
         dx = px - float(x)
         dy = py - float(y)
         dist2 = dx * dx + dy * dy
-        kk = max(1, min(int(k), dist2.size))
+        kk_raw = self.map_knn_k if k is None else int(k)
+        kk = max(1, min(int(kk_raw), dist2.size))
         idx = np.argpartition(dist2, kk - 1)[:kk]
         d = np.sqrt(dist2[idx]) + 1e-6
         w = 1.0 / d

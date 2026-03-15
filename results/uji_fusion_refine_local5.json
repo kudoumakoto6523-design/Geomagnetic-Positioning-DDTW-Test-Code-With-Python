@@ -1,0 +1,208 @@
+{
+  "cases": [
+    {
+      "case_id": "W_particles600",
+      "summary": {
+        "avg_pdr_final_m": 5.464118729198435,
+        "avg_pf_final_m": 4.340953736026308,
+        "avg_fused_final_m": 4.340953736026308,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.8924215503184837,
+        "avg_ess_ratio": 0.9985776032155255,
+        "avg_w_pf_mean": 1.0
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.0,
+          "max_hist": 20,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 600,
+          "min_particles": 300,
+          "max_particles": 600,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      }
+    },
+    {
+      "case_id": "X_hist40",
+      "summary": {
+        "avg_pdr_final_m": 5.468418030563228,
+        "avg_pf_final_m": 4.184585120741584,
+        "avg_fused_final_m": 4.184585120741584,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.7644892707893554,
+        "avg_ess_ratio": 0.9992212164040842,
+        "avg_w_pf_mean": 1.0
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.0,
+          "max_hist": 40,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 400,
+          "min_particles": 200,
+          "max_particles": 400,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      }
+    },
+    {
+      "case_id": "Y_motion_mid",
+      "summary": {
+        "avg_pdr_final_m": 5.468418030563228,
+        "avg_pf_final_m": 4.0209550008417425,
+        "avg_fused_final_m": 4.0209550008417425,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 1.0083497515108792,
+        "avg_ess_ratio": 0.9988366345304435,
+        "avg_w_pf_mean": 1.0
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.06,
+          "step_noise_std": 0.1
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.0,
+          "max_hist": 20,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 400,
+          "min_particles": 200,
+          "max_particles": 400,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      }
+    },
+    {
+      "case_id": "Z_always_resample",
+      "summary": {
+        "avg_pdr_final_m": 5.468418030563228,
+        "avg_pf_final_m": 4.022515107138309,
+        "avg_fused_final_m": 4.022515107138309,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 1.1415653410701743,
+        "avg_ess_ratio": 0.999999999999999,
+        "avg_w_pf_mean": 1.0
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.0,
+          "max_hist": 20,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "always",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 400,
+          "min_particles": 200,
+          "max_particles": 400,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      }
+    }
+  ]
+}

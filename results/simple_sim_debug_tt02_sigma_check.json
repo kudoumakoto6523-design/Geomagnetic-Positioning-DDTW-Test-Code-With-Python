@@ -1,0 +1,32 @@
+[
+  {
+    "sigma": 1.0,
+    "steps": 54,
+    "pf_mean": 1.8438283493022614,
+    "pdr_mean": 1.928641569175443,
+    "pf_better_count": 52,
+    "pf_worse_count": 2,
+    "ess_ratio_mean": 0.7053864244292796,
+    "ess_ratio_min": 0.5744875735592823
+  },
+  {
+    "sigma": 10.0,
+    "steps": 54,
+    "pf_mean": 1.9277314989289247,
+    "pdr_mean": 1.928641569175443,
+    "pf_better_count": 40,
+    "pf_worse_count": 14,
+    "ess_ratio_mean": 0.999945876401278,
+    "ess_ratio_min": 0.999918586355772
+  },
+  {
+    "sigma": 60.0,
+    "steps": 54,
+    "pf_mean": 1.9283212144685804,
+    "pdr_mean": 1.928641569175443,
+    "pf_better_count": 38,
+    "pf_worse_count": 16,
+    "ess_ratio_mean": 0.9999999581376803,
+    "ess_ratio_min": 0.9999999370422629
+  }
+]

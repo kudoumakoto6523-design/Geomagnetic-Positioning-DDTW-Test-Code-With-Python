@@ -1,0 +1,484 @@
+{
+  "cases": [
+    {
+      "case_id": "A_base_400",
+      "summary": {
+        "avg_pdr_final_m": 5.489599037460936,
+        "avg_pf_final_m": 4.138952481373121,
+        "avg_fused_final_m": 4.138952481373121,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.8640642910493621,
+        "avg_ess_ratio": 0.9998192350586446,
+        "avg_w_pf_mean": 1.0
+      },
+      "pdr_config": {
+        "step_judge": "peak_dynamic",
+        "step_judge_params": {
+          "peak_sigma": 0.4,
+          "peak_prominence": 0.2,
+          "min_samples_per_step": 4.0
+        },
+        "step_length": "weinberg",
+        "step_length_params": {
+          "weinberg_k": 0.45
+        },
+        "heading": "gyro",
+        "heading_params": {
+          "dt": 0.01,
+          "alpha": 0.9
+        },
+        "mag": "norm_mean",
+        "mag_params": {}
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.5,
+          "max_hist": 20,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 400,
+          "min_particles": 200,
+          "max_particles": 400,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      },
+      "fusion_config": {
+        "mode": "pf_only",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": false,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    },
+    {
+      "case_id": "B_particles_800",
+      "summary": {
+        "avg_pdr_final_m": 5.481555936577545,
+        "avg_pf_final_m": 4.284521087064785,
+        "avg_fused_final_m": 4.284521087064785,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.6206252563400617,
+        "avg_ess_ratio": 0.9994999341545672,
+        "avg_w_pf_mean": 1.0
+      },
+      "pdr_config": {
+        "step_judge": "peak_dynamic",
+        "step_judge_params": {
+          "peak_sigma": 0.4,
+          "peak_prominence": 0.2,
+          "min_samples_per_step": 4.0
+        },
+        "step_length": "weinberg",
+        "step_length_params": {
+          "weinberg_k": 0.45
+        },
+        "heading": "gyro",
+        "heading_params": {
+          "dt": 0.01,
+          "alpha": 0.9
+        },
+        "mag": "norm_mean",
+        "mag_params": {}
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.5,
+          "max_hist": 20,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 800,
+          "min_particles": 400,
+          "max_particles": 800,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      },
+      "fusion_config": {
+        "mode": "pf_only",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": false,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    },
+    {
+      "case_id": "C_sigma_08",
+      "summary": {
+        "avg_pdr_final_m": 5.489599037460936,
+        "avg_pf_final_m": 4.244975461709055,
+        "avg_fused_final_m": 4.244975461709055,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.745093482165852,
+        "avg_ess_ratio": 0.9974529519615593,
+        "avg_w_pf_mean": 1.0
+      },
+      "pdr_config": {
+        "step_judge": "peak_dynamic",
+        "step_judge_params": {
+          "peak_sigma": 0.4,
+          "peak_prominence": 0.2,
+          "min_samples_per_step": 4.0
+        },
+        "step_length": "weinberg",
+        "step_length_params": {
+          "weinberg_k": 0.45
+        },
+        "heading": "gyro",
+        "heading_params": {
+          "dt": 0.01,
+          "alpha": 0.9
+        },
+        "mag": "norm_mean",
+        "mag_params": {}
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 0.8,
+          "max_hist": 20,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 400,
+          "min_particles": 200,
+          "max_particles": 400,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      },
+      "fusion_config": {
+        "mode": "pf_only",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": false,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    },
+    {
+      "case_id": "D_instant_2",
+      "summary": {
+        "avg_pdr_final_m": 5.489599037460936,
+        "avg_pf_final_m": 4.627227249714855,
+        "avg_fused_final_m": 4.627227249714855,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 1.6497247976933773,
+        "avg_ess_ratio": 0.9647437399519173,
+        "avg_w_pf_mean": 1.0
+      },
+      "pdr_config": {
+        "step_judge": "peak_dynamic",
+        "step_judge_params": {
+          "peak_sigma": 0.4,
+          "peak_prominence": 0.2,
+          "min_samples_per_step": 4.0
+        },
+        "step_length": "weinberg",
+        "step_length_params": {
+          "weinberg_k": 0.45
+        },
+        "heading": "gyro",
+        "heading_params": {
+          "dt": 0.01,
+          "alpha": 0.9
+        },
+        "mag": "norm_mean",
+        "mag_params": {}
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.5,
+          "max_hist": 20,
+          "instant_sigma": 2.0
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 400,
+          "min_particles": 200,
+          "max_particles": 400,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      },
+      "fusion_config": {
+        "mode": "pf_only",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": false,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    },
+    {
+      "case_id": "E_qfused_adapt",
+      "summary": {
+        "avg_pdr_final_m": 4.282079144189324,
+        "avg_pf_final_m": 4.213123519142214,
+        "avg_fused_final_m": 4.228671124850464,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 0.14570113773378646,
+        "avg_ess_ratio": 0.999816795245269,
+        "avg_w_pf_mean": 0.7222671466740326
+      },
+      "pdr_config": {
+        "step_judge": "peak_dynamic",
+        "step_judge_params": {
+          "peak_sigma": 0.4,
+          "peak_prominence": 0.2,
+          "min_samples_per_step": 4.0
+        },
+        "step_length": "weinberg",
+        "step_length_params": {
+          "weinberg_k": 0.45
+        },
+        "heading": "q_fused",
+        "heading_params": {
+          "dt": 0.01,
+          "alpha": 0.95
+        },
+        "mag": "norm_mean",
+        "mag_params": {}
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.5,
+          "max_hist": 20,
+          "instant_sigma": null
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 400,
+          "min_particles": 200,
+          "max_particles": 400,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      },
+      "fusion_config": {
+        "mode": "adaptive",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": true,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    },
+    {
+      "case_id": "F_800_instant",
+      "summary": {
+        "avg_pdr_final_m": 5.481555936577545,
+        "avg_pf_final_m": 4.8030959121964525,
+        "avg_fused_final_m": 4.8030959121964525,
+        "avg_steps": 57.09090909090909,
+        "avg_innovation_mean_m": 1.636744299231711,
+        "avg_ess_ratio": 0.9136958830092997,
+        "avg_w_pf_mean": 1.0
+      },
+      "pdr_config": {
+        "step_judge": "peak_dynamic",
+        "step_judge_params": {
+          "peak_sigma": 0.4,
+          "peak_prominence": 0.2,
+          "min_samples_per_step": 4.0
+        },
+        "step_length": "weinberg",
+        "step_length_params": {
+          "weinberg_k": 0.45
+        },
+        "heading": "gyro",
+        "heading_params": {
+          "dt": 0.01,
+          "alpha": 0.9
+        },
+        "mag": "norm_mean",
+        "mag_params": {}
+      },
+      "pf_config": {
+        "motion": "gaussian",
+        "motion_params": {
+          "heading_noise_std": 0.05,
+          "step_noise_std": 0.08
+        },
+        "weight": "ddtw",
+        "weight_params": {
+          "sigma": 1.5,
+          "max_hist": 20,
+          "instant_sigma": 2.0
+        },
+        "particle_size": "kld",
+        "particle_size_params": {
+          "epsilon": 0.1,
+          "bin_size_xy": 0.5,
+          "bin_size_theta": 0.35
+        },
+        "resample_trigger": "ess_or_target",
+        "resample_trigger_params": {
+          "ess_ratio_threshold": 0.4
+        },
+        "resample": "cso",
+        "resample_params": {},
+        "state_params": {
+          "num_particles": 800,
+          "min_particles": 400,
+          "max_particles": 800,
+          "seed": 42,
+          "map_knn_k": 4
+        },
+        "stage_order": [
+          "predict",
+          "update",
+          "particle_size",
+          "resample_decision",
+          "resample"
+        ]
+      },
+      "fusion_config": {
+        "mode": "pf_only",
+        "weight_pf": 0.5,
+        "feedback_to_pdr": false,
+        "feedback_to_pf": false,
+        "adapt_base": 0.45,
+        "adapt_innovation_gain": 0.25,
+        "adapt_ess_gain": 0.25,
+        "adapt_innovation_scale_m": 1.5
+      }
+    }
+  ]
+}

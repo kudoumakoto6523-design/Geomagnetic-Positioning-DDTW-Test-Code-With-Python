@@ -22,7 +22,7 @@ class ExampleExperiment(Experiment):
             motion="gaussian",
             motion_params={"heading_noise_std": 0.01, "step_noise_std": 0.01},
             weight="ddtw",
-            weight_params={"sigma": 60.0, "max_hist": 100},
+            weight_params={"sigma": 0.1, "max_hist": 100},
             particle_size="kld",
             particle_size_params={"epsilon": 0.10, "bin_size_xy": 0.5, "bin_size_theta": 0.35},
             resample_trigger="ess_or_target",

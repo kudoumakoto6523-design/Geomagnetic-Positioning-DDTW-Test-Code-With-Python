@@ -131,8 +131,13 @@ class ResampleDecisionStage(Module):
         self.trigger = RESAMPLE_TRIGGER_REGISTRY.build(trigger, **(trigger_kwargs or {}))
 
     def forward(self, ctx):
+        hist_len = len(ctx.get("geomag_seq", []) or [])
         ctx["should_resample"] = bool(
-            self.trigger.should_resample(ctx["pf_state"], target_count=int(ctx.get("target_n", 0)))
+            self.trigger.should_resample(
+                ctx["pf_state"],
+                target_count=int(ctx.get("target_n", 0)),
+                hist_len=hist_len,
+            )
         )
         return ctx
 

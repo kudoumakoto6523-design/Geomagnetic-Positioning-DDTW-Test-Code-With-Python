@@ -1,0 +1,380 @@
+[
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 60.0,
+      "window": 50,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.19809736250298,
+      "median": 9.529869059041701,
+      "p95": 10.862738429330019,
+      "final": 9.680436754259558
+    },
+    "pf_minus_pdr_final_m": 0.4483287222251118,
+    "steps": 31,
+    "ess": {
+      "mean": 419.353861972958,
+      "median": 399.99974688419604,
+      "p95": 399.9999871771473,
+      "final": 399.99994833687475
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 60.0,
+      "window": 150,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.19809736250298,
+      "median": 9.529869059041701,
+      "p95": 10.862738429330019,
+      "final": 9.680436754259558
+    },
+    "pf_minus_pdr_final_m": 0.4483287222251118,
+    "steps": 31,
+    "ess": {
+      "mean": 419.353861972958,
+      "median": 399.99974688419604,
+      "p95": 399.9999871771473,
+      "final": 399.99994833687475
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 60.0,
+      "window": 200,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.19809736250298,
+      "median": 9.529869059041701,
+      "p95": 10.862738429330019,
+      "final": 9.680436754259558
+    },
+    "pf_minus_pdr_final_m": 0.4483287222251118,
+    "steps": 31,
+    "ess": {
+      "mean": 419.353861972958,
+      "median": 399.99974688419604,
+      "p95": 399.9999871771473,
+      "final": 399.99994833687475
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 20.0,
+      "window": 50,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.195429674448201,
+      "median": 9.52873765894938,
+      "p95": 10.858455534981378,
+      "final": 9.68107509628446
+    },
+    "pf_minus_pdr_final_m": 0.448967064250013,
+    "steps": 31,
+    "ess": {
+      "mean": 419.2764252595076,
+      "median": 399.97968336048,
+      "p95": 399.9989612877145,
+      "final": 399.99580380545814
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 20.0,
+      "window": 150,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.195429674448201,
+      "median": 9.52873765894938,
+      "p95": 10.858455534981378,
+      "final": 9.68107509628446
+    },
+    "pf_minus_pdr_final_m": 0.448967064250013,
+    "steps": 31,
+    "ess": {
+      "mean": 419.2764252595076,
+      "median": 399.97968336048,
+      "p95": 399.9989612877145,
+      "final": 399.99580380545814
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 20.0,
+      "window": 200,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.195429674448201,
+      "median": 9.52873765894938,
+      "p95": 10.858455534981378,
+      "final": 9.68107509628446
+    },
+    "pf_minus_pdr_final_m": 0.448967064250013,
+    "steps": 31,
+    "ess": {
+      "mean": 419.2764252595076,
+      "median": 399.97968336048,
+      "p95": 399.9989612877145,
+      "final": 399.99580380545814
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 5.0,
+      "window": 50,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.151910449682658,
+      "median": 9.44866084210558,
+      "p95": 10.79054213575392,
+      "final": 9.69216982402615
+    },
+    "pf_minus_pdr_final_m": 0.46006179199170383,
+    "steps": 31,
+    "ess": {
+      "mean": 402.9262844801502,
+      "median": 395.5004145785548,
+      "p95": 399.733791969616,
+      "final": 398.8742389892387
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 5.0,
+      "window": 150,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.151910449682658,
+      "median": 9.44866084210558,
+      "p95": 10.79054213575392,
+      "final": 9.69216982402615
+    },
+    "pf_minus_pdr_final_m": 0.46006179199170383,
+    "steps": 31,
+    "ess": {
+      "mean": 402.9262844801502,
+      "median": 395.5004145785548,
+      "p95": 399.733791969616,
+      "final": 398.8742389892387
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  },
+  {
+    "config": {
+      "particles": 1000,
+      "sigma": 5.0,
+      "window": 200,
+      "heading": "gyro",
+      "raw_dtw": true,
+      "latent_bias": false,
+      "max_frames": 180,
+      "test_file": "tt01.txt"
+    },
+    "pdr_error": {
+      "mean": 8.226159179287027,
+      "median": 9.295769320602634,
+      "p95": 10.760150004939895,
+      "final": 9.232108032034446
+    },
+    "pf_error": {
+      "mean": 8.151910449682658,
+      "median": 9.44866084210558,
+      "p95": 10.79054213575392,
+      "final": 9.69216982402615
+    },
+    "pf_minus_pdr_final_m": 0.46006179199170383,
+    "steps": 31,
+    "ess": {
+      "mean": 402.9262844801502,
+      "median": 395.5004145785548,
+      "p95": 399.733791969616,
+      "final": 398.8742389892387
+    },
+    "particle_counts": {
+      "min": 400,
+      "max": 1000,
+      "final": 400,
+      "target_min": 400,
+      "target_max": 1000,
+      "target_final": 400,
+      "resampled_steps": 1
+    },
+    "output_png": null
+  }
+]

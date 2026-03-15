@@ -106,7 +106,7 @@ class ParticleSizeBlock(ABC):
 
 class ResampleTriggerBlock(ABC):
     @abstractmethod
-    def should_resample(self, pf_state, target_count: int) -> bool:
+    def should_resample(self, pf_state, target_count: int, **kwargs) -> bool:
         raise NotImplementedError
 
 
@@ -145,19 +145,49 @@ class AlgoMag(MagBlock):
         return float(algorithms.get_mag(method=self.method))
 
 
-def _ddtw_distance(a, b):
-    a = np.asarray(a, dtype=float).reshape(-1)
-    b = np.asarray(b, dtype=float).reshape(-1)
+def _derivative_sequence(x):
+    x = np.asarray(x, dtype=float).reshape(-1)
+    if x.size <= 1:
+        return x.copy()
+    if x.size == 2:
+        return np.asarray([x[1] - x[0]], dtype=float)
+    d = np.empty_like(x, dtype=float)
+    d[0] = float(x[1] - x[0])
+    d[-1] = float(x[-1] - x[-2])
+    d[1:-1] = 0.5 * (x[2:] - x[:-2])
+    return d
+
+
+def _zscore(x):
+    x = np.asarray(x, dtype=float).reshape(-1)
+    if x.size == 0:
+        return x
+    mu = float(np.mean(x))
+    sd = float(np.std(x))
+    if sd < 1e-8:
+        return x - mu
+    return (x - mu) / sd
+
+
+def _ddtw_distance(a, b, window_ratio=0.25):
+    a = _zscore(_derivative_sequence(a))
+    b = _zscore(_derivative_sequence(b))
     if a.size == 0 or b.size == 0:
         return 0.0
-    n, m = a.size, b.size
+
+    n, m = int(a.size), int(b.size)
+    window = max(abs(n - m), int(max(n, m) * float(window_ratio)), 4)
     dp = np.full((n + 1, m + 1), np.inf, dtype=float)
     dp[0, 0] = 0.0
+
     for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            cost = abs(a[i - 1] - b[j - 1])
+        j0 = max(1, i - window)
+        j1 = min(m, i + window)
+        ai = float(a[i - 1])
+        for j in range(j0, j1 + 1):
+            cost = abs(ai - float(b[j - 1]))
             dp[i, j] = cost + min(dp[i - 1, j], dp[i, j - 1], dp[i - 1, j - 1])
-    return float(dp[n, m] / (n + m))
+    return float(dp[n, m] / max(1, n + m))
 
 
 def _wrap_angle_pi(rad):
@@ -181,23 +211,38 @@ class GaussianMotion(MotionBlock):
 
 
 class DDTWWeight(WeightBlock):
-    def __init__(self, sigma=None, max_hist=100):
+    def __init__(self, sigma=None, max_hist=100, window_ratio=0.25, instant_sigma=None, accumulate=True):
         self.sigma = sigma
         self.max_hist = int(max_hist)
+        self.window_ratio = float(window_ratio)
+        self.instant_sigma = instant_sigma
+        self.accumulate = bool(accumulate)
 
     def forward(self, pf_state, geomag_seq):
         obs = np.asarray(list(geomag_seq), dtype=float).reshape(-1)
         sigma = float(self.sigma if self.sigma is not None else getattr(pf_state, "weight_sigma", 8.0))
+        instant_sigma = (
+            float(self.instant_sigma)
+            if self.instant_sigma is not None
+            else None
+        )
 
         for p in pf_state.particles:
+            prior_weight = float(max(p.weight, 1e-12)) if self.accumulate else 1.0
             pred_mag = float(pf_state.map_magnitude(p.x, p.y))
             p.mag_hist.append(pred_mag)
             hist_len = int(max(1, min(len(obs), self.max_hist)))
             pred_seq = np.asarray(p.mag_hist[-hist_len:], dtype=float)
             obs_seq = obs[-hist_len:] if obs.size else np.asarray([pred_mag], dtype=float)
-            d = _ddtw_distance(obs_seq, pred_seq)
+            d = _ddtw_distance(obs_seq, pred_seq, window_ratio=self.window_ratio)
             w_ddtw = math.exp(-((d * d) / (2.0 * sigma * sigma + 1e-12)))
-            p.weight = float(max(1e-12, w_ddtw))
+            if instant_sigma is not None and instant_sigma > 1e-8 and obs_seq.size > 0:
+                residual = float(abs(pred_mag - float(obs_seq[-1])))
+                w_inst = math.exp(-((residual * residual) / (2.0 * instant_sigma * instant_sigma + 1e-12)))
+                weight = w_ddtw * w_inst
+            else:
+                weight = w_ddtw
+            p.weight = float(max(1e-12, prior_weight * weight))
         pf_state._normalize_weights()
 
 
@@ -225,17 +270,48 @@ class KLDSampleSize(ParticleSizeBlock):
 
 
 class ESSOrTargetTrigger(ResampleTriggerBlock):
-    def __init__(self, ess_ratio_threshold=0.5):
+    def __init__(self, ess_ratio_threshold=0.5, warmup_steps=8, min_weight_cv=0.01, flat_ess_ratio=0.95):
         self.ess_ratio_threshold = float(ess_ratio_threshold)
+        self.warmup_steps = int(max(0, warmup_steps))
+        self.min_weight_cv = float(max(0.0, min_weight_cv))
+        self.flat_ess_ratio = float(np.clip(flat_ess_ratio, 0.0, 1.0))
 
-    def should_resample(self, pf_state, target_count: int) -> bool:
+    @staticmethod
+    def _weight_cv(pf_state) -> float:
+        ws = np.asarray([max(float(p.weight), 0.0) for p in pf_state.particles], dtype=float)
+        if ws.size == 0:
+            return 0.0
+        total = float(np.sum(ws))
+        if total <= 1e-12:
+            return 0.0
+        wn = ws / total
+        mu = float(np.mean(wn))
+        if mu <= 1e-12:
+            return 0.0
+        return float(np.std(wn) / (mu + 1e-12))
+
+    def should_resample(self, pf_state, target_count: int, hist_len=None, **kwargs) -> bool:
         curr_n = max(1, len(pf_state.particles))
         ess = float(pf_state.effective_sample_size())
-        return bool(ess < self.ess_ratio_threshold * curr_n or int(target_count) != curr_n)
+        if ess < self.ess_ratio_threshold * curr_n:
+            return True
+
+        if int(target_count) == curr_n:
+            return False
+
+        if hist_len is not None and int(hist_len) < self.warmup_steps:
+            return False
+
+        ess_ratio = ess / float(curr_n)
+        weight_cv = self._weight_cv(pf_state)
+        if ess_ratio >= self.flat_ess_ratio and weight_cv < self.min_weight_cv:
+            return False
+
+        return True
 
 
 class AlwaysTrigger(ResampleTriggerBlock):
-    def should_resample(self, pf_state, target_count: int) -> bool:
+    def should_resample(self, pf_state, target_count: int, **kwargs) -> bool:
         return True
 
 
